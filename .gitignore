@@ -1,0 +1,26 @@
+# Created by https://www.toptal.com/developers/gitignore/api/python
+# Edit at https://www.toptal.com/developers/gitignore?templates=python
+
+
+### Python ###
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+### Cherry Tree Notes ###
+*.ctb*
+
+### User Data ###
+data/
+
+### Virtual Environment ###
+pyside-venv/
+
+
+### Todo ###
+todo
+
+### Misc Scripts ###
+makesampleimage.py
+perf.py
