@@ -163,3 +163,4 @@ def tracers_wobbly(line, tracer_length=44, border_width=2, **kwargs):
 
 
 group_generators = {"Linear": linear, "Rows": rows, "Columns": columns}
+sort_generators = {"Linear": linear_sort, "Shutters": shutters, "Tracers": tracers, "Wobbly Tracers": tracers_wobbly}

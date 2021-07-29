@@ -28,17 +28,18 @@ def brighten(pixel, modifiers):
 
 # These dicts are primarily useful in the GUI, they assign strings to functions from groupby.py
 # NOTE : should I use these or should I use the ones from the source modules?
-grouping_functions = {
-        "Linear":  linear,
-        "Rows":    rows,
-        "Columns": columns,
-}
-sort_functions = {
-    "Linear": linear_sort,
-    "Shutters": shutters,
-    "Tracers": tracers,
-    "Wobbly Tracers": tracers_wobbly,
-}
+# NOTE : commented these out because I have dicts for these in groupby.py
+#grouping_functions = {
+#        "Linear":  linear,
+#        "Rows":    rows,
+#        "Columns": columns,
+#}
+#sort_functions = {
+#    "Linear": linear_sort,
+#    "Shutters": shutters,
+#    "Tracers": tracers,
+#    "Wobbly Tracers": tracers_wobbly,
+#}
 
 
 def sort_pixels(pixels, size, group_func, sort_func, key_func, reverse=False, color_mods=(1, 1, 1), **kwargs):
@@ -89,9 +90,9 @@ def sort_image(src, grouping_function, sort_function, key_function, reverse=Fals
     if isinstance(src, str):
         src = Image.open(src)
     if isinstance(grouping_function, str):
-        grouping_function = grouping_functions[grouping_function]
+        grouping_function = group_generators[grouping_function]
     if isinstance(sort_function, str):
-        sort_function = sort_functions.get(sort_function, linear_sort)
+        sort_function = sort_generators.get(sort_function, linear_sort)
     if isinstance(key_function, str):
         key_function = key_functions[key_function]
     glitch = src.copy()
@@ -161,7 +162,7 @@ def main():
             (shutters, linear_sort, tracers),
             (False, False, False),
      )
-    myshow(glitch)
+    glitch.show()
 
 
 if __name__ == "__main__":
