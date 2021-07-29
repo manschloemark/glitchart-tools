@@ -9,7 +9,6 @@ from PIL import Image
 
 from groupby import *
 from pixelstats import *
-from subimages import *
 from util import *
 
 # Functions used to modify pixels
@@ -24,7 +23,7 @@ def brighten(pixel, modifiers):
 
     if isinstance(pixel, int):
         return pixel * modifiers
-    return tuple([min(255, color * modifier)) for color, modifier in zip(pixel, modifiers)])
+    return tuple([min(255, color * modifier) for color, modifier in zip(pixel, modifiers)])
 
 
 # These dicts are primarily useful in the GUI, they assign strings to functions from groupby.py
