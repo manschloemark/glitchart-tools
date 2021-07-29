@@ -107,7 +107,6 @@ def sort_image(src, grouping_function, sort_function, key_function, reverse=Fals
                         )
 
     glitch.putdata(pixels)
-    make_temp_file(glitch)
     return glitch
 
 
