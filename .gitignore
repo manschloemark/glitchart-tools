@@ -17,6 +17,8 @@ data/
 ### Virtual Environment ###
 pyside-venv/
 
+### Configs ###
+*.ini
 
 ### Todo ###
 todo
