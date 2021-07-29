@@ -15,7 +15,7 @@ __pycache__/
 data/
 
 ### Virtual Environment ###
-pyside-venv/
+venv/
 
 ### Configs ###
 *.ini
@@ -26,3 +26,4 @@ todo
 ### Misc Scripts ###
 makesampleimage.py
 perf.py
+
