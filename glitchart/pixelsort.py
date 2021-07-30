@@ -12,7 +12,7 @@ from pixelstats import *
 from util import *
 
 # Functions used to modify pixels
-# NOTE : I'm not sure this belongs here but I don't really have a better place for it.
+# NOTE : I'm not sure this belongs here but right now I don't have a better place for it.
 def brighten(pixel, modifiers):
     """ Multiply a pixel by given value(s). Works with tuples of pixels or single colors from a pixel.
 
@@ -22,24 +22,8 @@ def brighten(pixel, modifiers):
     """
 
     if isinstance(pixel, int):
-        return pixel * modifiers
-    return tuple([min(255, color * modifier) for color, modifier in zip(pixel, modifiers)])
-
-
-# These dicts are primarily useful in the GUI, they assign strings to functions from groupby.py
-# NOTE : should I use these or should I use the ones from the source modules?
-# NOTE : commented these out because I have dicts for these in groupby.py
-#grouping_functions = {
-#        "Linear":  linear,
-#        "Rows":    rows,
-#        "Columns": columns,
-#}
-#sort_functions = {
-#    "Linear": linear_sort,
-#    "Shutters": shutters,
-#    "Tracers": tracers,
-#    "Wobbly Tracers": tracers_wobbly,
-#}
+        return int(pixel * modifiers)
+    return tuple([min(255, int(color * modifier)) for color, modifier in zip(pixel, modifiers)])
 
 
 def sort_pixels(pixels, size, group_func, sort_func, key_func, reverse=False, color_mods=(1, 1, 1), **kwargs):
