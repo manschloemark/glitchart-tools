@@ -61,6 +61,7 @@ def make_temp_file(img, directory=None):
     temp_name = "temp" + "".join(random.choice("ABCDEFG1234567890") for _ in range(12)) + ".jpg"
     temp_file = os.path.join(directory, temp_name)
     img.save(temp_file)
+    img.filename = temp_file
     return temp_file
 
 
