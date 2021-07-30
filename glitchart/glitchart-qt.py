@@ -306,6 +306,8 @@ class PixelSortInput(QWidget):
         self.layout.setAlignment(Qt.AlignCenter)
 
         title = QLabel(name)
+        if not self.rgb:
+            self.do_not_sort = QCheckBox("Do not sort")
         groupby_label = QLabel("Delineate image by: ")
         self.group_function_cb = combobox_with_keys(groupby.group_generators.keys())
         self.group_function_cb .currentTextChanged.connect(self.groupFunctionChanged)
@@ -322,7 +324,10 @@ class PixelSortInput(QWidget):
         self.reverse_checkbox = QCheckBox("Reversed")
 
 
-        self.layout.addRow(title)
+        if self.rgb:
+            self.layout.addRow(title)
+        else:
+            self.layout.addRow(title, self.do_not_sort)
         self.layout.addRow(groupby_label, self.group_function_cb)
         self.layout.addRow(sort_function_label, self.sort_function_cb)
         if self.rgb:
@@ -343,6 +348,8 @@ class PixelSortInput(QWidget):
                                 )
     
     def sortImage(self, source_image, color_mods):
+        if not self.rgb and self.do_not_sort.isChecked():
+            return source_image
         group_function = self.group_function_cb.currentText()
         sort_function = self.sort_function_cb.currentText()
         if self.rgb:
