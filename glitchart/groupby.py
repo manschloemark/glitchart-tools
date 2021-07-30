@@ -101,7 +101,9 @@ def tracers(line, tracer_length=44, border_width=2, variance_threshold=None, **k
         :returns: tuples containing a list of pixels and a sorting flag.
     """
     if isinstance(line[0], int):
-        brightness_fast = lambda x: x
+        variance_metric = lambda x: x
+    else:
+        variance_metric = brightness_fast
     variance_threshold = variance_threshold or 0.25
     # TODO
     # sort_list flag is used in an attempt to avoid making a tracer on the inside of an
@@ -114,7 +116,7 @@ def tracers(line, tracer_length=44, border_width=2, variance_threshold=None, **k
     while x < (len(line) - border_width):
         at_border = True
         for x2 in range(x + 1, min(len(line), x + border_width)):
-            if (abs(brightness_fast(line[x]) - brightness_fast(line[x2])) < variance_threshold):
+            if (abs(variance_metric(line[x]) - variance_metric(line[x2])) < variance_threshold):
                 at_border = False
                 break
         if at_border:
@@ -147,12 +149,16 @@ def tracers_wobbly(line, tracer_length=44, border_width=2, **kwargs):
         :param border_width: how many pixels need to satisfy the border condition in a row to trigger the tracer effect.
         :returns: tuples containing a list of pixels and a sorting flag.
     """
+    if isinstance(line[0], int):
+        variance_metric = lambda x: x
+    else:
+        variance_metric = brightness_fast
     variance_threshold = 0.2
     i = 0
     while i < len(line):
         border = True
         for j in range(1, border_width + 1):
-            if i + j >= len(line) or abs(brightness_fast(line[i]) - brightness_fast(line[j])) < variance_threshold:
+            if i + j >= len(line) or abs(variance_metric(line[i]) - variance_metric(line[j])) < variance_threshold:
                 border = False
         if border:
             yield (line[i + 1 : i + tracer_length + 1], True)
