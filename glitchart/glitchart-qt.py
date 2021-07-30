@@ -1,7 +1,7 @@
 """ glitchart-qt - Qt GUI for glitch art tools. Uses PySide6."""
 # Copyright (c) 2021 Mark Schloeman
 
-from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QSlider, QGraphicsScene, QGraphicsView, QFormLayout
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QSlider, QGraphicsScene, QGraphicsView, QFormLayout, QSizePolicy
 from PySide6.QtGui import QPixmap, QImage
 from PySide6 import QtCore
 from PySide6.QtCore import QSize, Qt, QPointF
@@ -237,7 +237,7 @@ class TracerSortArgs(PixelsortRegionArgs):
         self.initUI()
 
     def initUI(self):
-        self.layout = QVBoxLayout(self)
+        self.layout = QFormLayout(self)
         title = QLabel("Tracer Sort Parameters")
         # TODO : learn how to make tooltips that describe the parameters
         # TODO : limit size to the height / width of source image
@@ -259,14 +259,12 @@ class TracerSortArgs(PixelsortRegionArgs):
         self.variance_threshold_input.setMinimum(0)
         self.variance_threshold_input.setMaximum(100)
         self.variance_threshold_input.valueChanged.connect(lambda v: self.variance_threshold_label.setText(f'Variance Limit: {str(v)}%'))
+        self.variance_threshold_input.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
 
-        self.layout.addWidget(title)
-        self.layout.addWidget(tracer_length_label)
-        self.layout.addWidget(self.tracer_length_input)
-        self.layout.addWidget(border_width_label)
-        self.layout.addWidget(self.border_width_input)
-        self.layout.addWidget(self.variance_threshold_label)
-        self.layout.addWidget(self.variance_threshold_input)
+        self.layout.addRow(title)
+        self.layout.addRow(tracer_length_label, self.tracer_length_input)
+        self.layout.addRow(border_width_label, self.border_width_input)
+        self.layout.addRow(self.variance_threshold_label, self.variance_threshold_input)
 
         self.setLayout(self.layout)
 
@@ -304,7 +302,7 @@ class PixelSortInput(QWidget):
         self.initUI(name)
 
     def initUI(self, name):
-        self.layout = QVBoxLayout(self)
+        self.layout = QFormLayout(self)
         self.layout.setAlignment(Qt.AlignCenter)
 
         title = QLabel(name)
@@ -323,20 +321,13 @@ class PixelSortInput(QWidget):
 
         self.reverse_checkbox = QCheckBox("Reversed")
 
-        color_mod_label = QLabel("Modify Sorted Pixels:")
-        self.color_mod_input = PixelColorSliders()
 
-        self.layout.addWidget(title)
-        self.layout.addWidget(groupby_label)
-        self.layout.addWidget(self.group_function_cb)
-        self.layout.addWidget(sort_function_label)
-        self.layout.addWidget(self.sort_function_cb)
+        self.layout.addRow(title)
+        self.layout.addRow(groupby_label, self.group_function_cb)
+        self.layout.addRow(sort_function_label, self.sort_function_cb)
         if self.rgb:
-            self.layout.addWidget(sort_key_label)
-            self.layout.addWidget(self.sort_key_function_cb)
-        self.layout.addWidget(self.reverse_checkbox)
-        self.layout.addWidget(color_mod_label)
-        self.layout.addWidget(self.color_mod_input)
+            self.layout.addRow(sort_key_label, self.sort_key_function_cb)
+        self.layout.addRow(self.reverse_checkbox)
     
     def groupFunctionChanged(self, key):
         pass
@@ -346,12 +337,12 @@ class PixelSortInput(QWidget):
             self.sort_function_params.setParent(None)
         self.sort_function_params = function_param_widgets[key]()
         if self.sort_function_params:
-            self.layout.insertWidget(
+            self.layout.insertRow(
                                 self.layout.indexOf(self.sort_function_cb) + 1,
                                 self.sort_function_params
                                 )
     
-    def performGlitch(self, source_image):
+    def sortImage(self, source_image, color_mods):
         group_function = self.group_function_cb.currentText()
         sort_function = self.sort_function_cb.currentText()
         if self.rgb:
@@ -359,7 +350,6 @@ class PixelSortInput(QWidget):
         else:
             sort_key_function = lambda x: x
         reverse = self.reverse_checkbox.checkState()
-        color_mods = self.color_mod_input.getValues()
         kwargs = dict()
         if self.sort_function_params:
             kwargs.update(self.sort_function_params.get_kwargs())
@@ -380,16 +370,21 @@ class PixelSortWidget(QWidget):
         self.initUI()
     
     def initUI(self):
-        self.layout = QVBoxLayout(self)
+        self.layout = QGridLayout(self)
 
         self.sort_bands_checkbox = QCheckBox("Sort channels separately")
         self.sort_bands_checkbox.stateChanged.connect(self.channelsChanged)
-        self.pixelsort_input_container = QVBoxLayout()
+        self.pixelsort_input_container = QHBoxLayout()
         self.pixelsort_input = []
         self.loadInputWidgets()
 
-        self.layout.addWidget(self.sort_bands_checkbox)
-        self.layout.addLayout(self.pixelsort_input_container)
+        color_mod_label = QLabel("Modify Sorted Pixels:")
+        self.color_mod_input = PixelColorSliders()
+
+        self.layout.addWidget(self.sort_bands_checkbox, 0, 0, Qt.AlignLeft)
+        self.layout.addLayout(self.pixelsort_input_container, 1, 0, 2, 1, Qt.AlignCenter)
+        self.layout.addWidget(color_mod_label, 1, 1, Qt.AlignRight)
+        self.layout.addWidget(self.color_mod_input, 2, 1, Qt.AlignRight)
 
     def channelsChanged(self, checked):
         self._bandsort = checked
@@ -407,7 +402,7 @@ class PixelSortWidget(QWidget):
             self.pixelsort_input = [red_input, green_input, blue_input]
         else:
             # RGB Pixelsort
-            rgb_input = PixelSortInput("RGB", rgb=True)
+            rgb_input = PixelSortInput("3-Channel", rgb=True)
             # NOTE keeping pixelsort_input as a list so I can do 'for ... in pixelsort_input'
             #      not sure if this is smart at all but it saves a few loc.
             self.pixelsort_input = [rgb_input]
@@ -418,14 +413,15 @@ class PixelSortWidget(QWidget):
     #       I think I'll try this way and then if it's slow I'll try the inverse.
     def performGlitch(self, source_filename):
         source_image = Image.open(source_filename)
+        color_mods = self.color_mod_input.getValues()
         if self._bandsort:
             bands = []
-            for band, band_input in zip(source_image.split(), self.pixelsort_input):
-                band_glitch = self.band_input.performGlitch(band)
+            for band, band_input, mod in zip(source_image.split(), self.pixelsort_input, color_mods):
+                band_glitch = band_input.sortImage(band, mod)
                 bands.append(band_glitch)
             glitch_image = Image.merge("RGB", tuple(bands))
         else:
-            glitch_image = self.pixelsort_input[0].performGlitch(source_image)
+            glitch_image = self.pixelsort_input[0].sortImage(source_image, color_mods)
         return glitch_image
 
 
@@ -441,7 +437,7 @@ class GlitchArtTools(QWidget):
         self.default_path = util.get_default_image_path()
         self.source_filename = None
         self.glitch_filename = None
-        self._size_hint = screen_size / 1.5
+        self._size_hint = screen_size
         self.default_pixmap_max_size = self.sizeHint() * 3 / 8
 
         self.initUI()
@@ -454,36 +450,31 @@ class GlitchArtTools(QWidget):
         self.main_layout = QGridLayout()
 
         image_select_hbox = QHBoxLayout()
-        file_select_label = QLabel("Image source:")
+        file_select_label = QLabel("Source Image:")
         self.image_source_input = QLineEdit()
         self.image_source_input.editingFinished.connect(self.setImageFromLineInput)
         file_browser_button = QPushButton("Browse...")
         file_browser_button.clicked.connect(self.openFileSelect)
         self.source_image_label = QLabel("Select an image to edit")
-
         image_select_hbox.addWidget(file_select_label)
         image_select_hbox.addWidget(self.image_source_input)
         image_select_hbox.addWidget(file_browser_button)
 
-
-        self.middle = QWidget()
-        self.middle.setMinimumWidth(144)
-        self.middle_layout = QVBoxLayout(self.middle)
-        self.middle_layout.setAlignment(Qt.AlignCenter)
-
+        self.bottom = QWidget()
+        self.input_layout = QVBoxLayout(self.bottom)
+        self.input_layout.setAlignment(Qt.AlignCenter)
         glitch_settings_label = QLabel("Glitch Settings")
-
         # TODO add a control for the type of glitch to perform and make this more abstract.
         self.glitch_widget = PixelSortWidget()
         self.glitch_it_button = QPushButton("Glitch It!")
         self.glitch_it_button.setEnabled(False)
         self.glitch_it_button.clicked.connect(self.performGlitch)
 
-        self.middle_layout.addWidget(glitch_settings_label)
-        self.middle_layout.addWidget(self.glitch_widget)
-        self.middle_layout.addWidget(self.glitch_it_button)
+        self.input_layout.addWidget(glitch_settings_label)
+        self.input_layout.addWidget(self.glitch_widget)
+        self.input_layout.addWidget(self.glitch_it_button)
 
-        self.middle.setLayout(self.middle_layout)
+        self.bottom.setLayout(self.input_layout)
 
         glitch_file_hbox = QHBoxLayout()
 
@@ -496,36 +487,23 @@ class GlitchArtTools(QWidget):
         glitch_file_hbox.setStretch(0, 3)
         glitch_file_hbox.setStretch(1, 1)
 
-        self.glitch_image_label = QLabel("Glitch goes here!")
+        self.glitch_image_label = QLabel("Glitch goes here")
         self.enlarge_glitch_image = QPushButton("Enlarge")
         self.enlarge_glitch_image.clicked.connect(lambda _: self.openImageInNewWindow("glitch"))
         self.swap_glitch_button = QPushButton("Use as source image")
         self.swap_glitch_button.setMaximumWidth(144)
         self.swap_glitch_button.setEnabled(False)
         self.swap_glitch_button.clicked.connect(self.setGlitchAsSource)
-
-
         # Left side - source image selection
         self.main_layout.addLayout(image_select_hbox, 0, 0, Qt.AlignCenter)
         self.main_layout.addWidget(self.source_image_label, 2, 0, Qt.AlignCenter)# | Qt.AlignTop)
-
-        self.main_layout.setColumnMinimumWidth(1, 24)
-
-        # Middle - controls
-        self.main_layout.addWidget(self.middle, 0, 2, 4, 1, Qt.AlignCenter | Qt.AlignTop)
-        self.main_layout.setColumnMinimumWidth(3, 24)
-
+        # Bottom - controls
+        self.main_layout.addWidget(self.bottom, 3, 0, 1, 5)
         # Right side - output view / controls
         self.main_layout.addLayout(glitch_file_hbox, 0, 4)
         self.main_layout.addWidget(self.enlarge_glitch_image, 1, 4, Qt.AlignLeft)
         self.main_layout.addWidget(self.swap_glitch_button, 1, 4, Qt.AlignRight)
         self.main_layout.addWidget(self.glitch_image_label, 2, 4, Qt.AlignCenter)# | Qt.AlignTop)
-
-        self.main_layout.setRowStretch(1, 3)
-
-        self.main_layout.setColumnStretch(0, 3)
-        self.main_layout.setColumnStretch(2, 1)
-        self.main_layout.setColumnStretch(4, 3)
 
         self.setLayout(self.main_layout)
 
@@ -565,12 +543,12 @@ class GlitchArtTools(QWidget):
         self.source_pixmap = self.source_pixmap.scaled(self.source_pixmap.size().boundedTo(self.getMaxImageSize()), Qt.KeepAspectRatio)
         self.source_image_label.setPixmap(self.source_pixmap)
         self.glitch_it_button.setEnabled(True)
-        #self.source_image = Image.open(filename)
 
     # NOTE
-    # For some reason using PIL.ImageQt to convert the PIL.Image.Image to a PyQt5.QtGui.QImage and then
-    # using PyQt5.QtGui.QPixmap.fromImage causes the pixmap to be translucent
+    # For some reason using ImageQt to convert the PIL Image to a QImage and then
+    # using QPixmap.fromImage causes the pixmap to be translucent
     # So for now I don't do that. Instead I just load the pixmap using the filename
+    # This is why util.make_temp_image sets the pil_image.filename
     def setGlitchImage(self, pil_image):
         self.glitch_qimage = ImageQt(pil_image)
         self.glitch_filename = pil_image.filename
