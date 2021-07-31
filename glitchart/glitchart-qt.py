@@ -136,44 +136,10 @@ class PixelColorSliders(QWidget):
         blue = (self.blue_slider.value() / 100.0) + 1.0
         return (red, green, blue)
 
-
-#class PixelsortRegionComboBox(QComboBox):
-#    """ QComboBox that loads all grouping function keys for the user to select """
-#
-#    def __init__(self):
-#        super().__init__()
-#        self.initUI()
-#
-#    def initUI(self):
-#        for region_function_name in glitchart.grouping_functions.keys():
-#            self.addItem(region_function_name)
-
-
-#class PixelsortFunctionCombobox(QComboBox):
-#    """ QComboBox that loads all sort function keys for the user to select """
-#
-#    def __init__(self):
-#        super().__init__()
-#        self.initUI()
-#
-#    def initUI(self):
-#        for sort_function_name in glitchart.sort_functions.keys():
-#            self.addItem(sort_function_name)
-
-
-#class PixelsortKeyComboBox(QComboBox):
-#    """QComboBox that loads all pixel sorting key function names for the user to select. """
-#
-#    def __init__(self):
-#        super().__init__()
-#        self.initUI()
-#
-#    def initUI(self):
-#        for pixel_key_function_name in pixelstats.key_functions.keys():
-#            self.addItem(pixel_key_function_name)
-
-# The classes above feel unnecessary. A factory function should suffice.
 def combobox_with_keys(keys):
+    """ Convenience function that creates a combobox,
+    populates the options with items from an iterable, and returns the widget.
+    """
     cb = QComboBox()
     for key in keys:
         cb.addItem(key)
@@ -223,6 +189,47 @@ class ShutterSortArgs(PixelsortRegionArgs):
     def get_kwargs(self):
         kwargs = dict()
         kwargs["shutter_size"] = self.shutter_size_input.value()
+        return kwargs
+
+class VariableShutterSortArgs(PixelsortRegionArgs):
+    """ Variable Shutter Sort parameters:
+            Shutter Direction: rows / column generator from glitchart module
+            Min Shutter Width/Height: integer
+            Max Shutter Width/Height: integer
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QVBoxLayout(self)
+        title = QLabel("Shutter Sort Parameters")
+        # TODO : limit size to the height / width of source image
+        #        depending on whether the direction is rows / columns
+        min_shutter_size_label = QLabel("Min Shutter Size:")
+        self.min_shutter_size_input = QSpinBox()
+        self.min_shutter_size_input.setValue(48)
+        self.min_shutter_size_input.setSuffix("px")
+        self.min_shutter_size_input.setMaximum(9999)
+
+        max_shutter_size_label = QLabel("Max Shutter Size:")
+        self.max_shutter_size_input = QSpinBox()
+        self.max_shutter_size_input.setValue(48)
+        self.max_shutter_size_input.setSuffix("px")
+        self.max_shutter_size_input.setMaximum(9999)
+
+        self.layout.addWidget(title)
+        self.layout.addWidget(min_shutter_size_label)
+        self.layout.addWidget(self.min_shutter_size_input)
+        self.layout.addWidget(max_shutter_size_label)
+        self.layout.addWidget(self.max_shutter_size_input)
+        self.setLayout(self.layout)
+
+    def get_kwargs(self):
+        kwargs = dict()
+        kwargs["min_size"] = self.min_shutter_size_input.value()
+        kwargs["max_size"] = self.max_shutter_size_input.value()
         return kwargs
 
 
@@ -281,7 +288,7 @@ def no_params():
 function_param_widgets = {
     "Linear": no_params,
     "Rows": no_params, "Columns": no_params,
-    "Shutters": ShutterSortArgs,
+    "Shutters": ShutterSortArgs, "Variable Shutters": VariableShutterSortArgs,
     "Tracers": TracerSortArgs, "Wobbly Tracers": TracerSortArgs
     }
 
@@ -315,7 +322,7 @@ class PixelSortInput(QWidget):
         sort_function_label = QLabel("Sort image by: ")
         self.sort_function_cb = combobox_with_keys(groupby.sort_generators.keys())
         self.sort_function_cb.currentTextChanged.connect(self.sortFunctionChanged)
-        self.sort_function_params = None # TODO find out what this does?
+        self.sort_function_params = None
 
         if self.rgb:
             sort_key_label = QLabel("Order Pixels By:")
@@ -577,7 +584,7 @@ class GlitchArtTools(QWidget):
             # NOTE : improve file deletion and stuff
             self.deleteImage(self.glitch_filename)
         glitch_image = self.glitch_widget.performGlitch(self.source_filename)
-        util.make_temp_file(glitch_image, self.default_path)
+        util.make_temp_file(glitch_image, os.path.join(self.default_path, "temp"))
         self.setGlitchImage(glitch_image)
 
     def deleteImage(self, filename):

@@ -1,6 +1,7 @@
 """ groupby - this module contains functions and generators for delineating image pixels before sorting. """
 # Copyright (c) 2021 Mark Schloeman
 
+import random
 
 from pixelstats import *
 
@@ -86,6 +87,25 @@ def shutters(source_pixels, shutter_size=None, **kwargs):
     for index in range(0, len(source_pixels), shutter_size):
         yield (source_pixels[index : index + shutter_size], True)
 
+def variable_shutters(source_pixels, min_size=None, max_size=None, **kwargs):
+    """ Generator that yields chunks that vary between a minimum and maximum size
+
+    :param source_pixels: a list of pixels.
+    :param min_size:  an integer that determines the minimum number of pixels to yield
+    :param max_size:  an integer that determines the maximum number of pixels to yield
+    :returns: tuples containing a chunk of the source pixels and a sorting flag.
+    """
+    if min_size is None:
+        min_size = len(source_pixels) // 10
+    if max_size is None:
+        max_size = min_size * 1.5
+
+    left_index = 0
+    while left_index < len(source_pixels):
+        right_index = left_index + random.randint(min_size, max_size)
+        yield (source_pixels[left_index : right_index], True)
+        left_index = right_index
+
 
 # Complex generators that yield list based on pixel characteristics
 # NOTE : these won't work on bands
@@ -101,7 +121,7 @@ def tracers(line, tracer_length=44, border_width=2, variance_threshold=None, **k
         :returns: tuples containing a list of pixels and a sorting flag.
     """
     if isinstance(line[0], int):
-        variance_metric = lambda x: x
+        variance_metric = lambda x: x/255
     else:
         variance_metric = brightness_fast
     variance_threshold = variance_threshold or 0.25
@@ -169,4 +189,4 @@ def tracers_wobbly(line, tracer_length=44, border_width=2, **kwargs):
 
 
 group_generators = {"Linear": linear, "Rows": rows, "Columns": columns}
-sort_generators = {"Linear": linear_sort, "Shutters": shutters, "Tracers": tracers, "Wobbly Tracers": tracers_wobbly}
+sort_generators = {"Linear": linear_sort, "Shutters": shutters, "Variable Shutters": variable_shutters, "Tracers": tracers, "Wobbly Tracers": tracers_wobbly}
