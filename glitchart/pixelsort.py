@@ -38,13 +38,13 @@ def sort_pixels(pixels, size, group_func, sort_func, key_func, reverse=False, co
     :param key_func:   a function that is used as the key in python's sorted() function
     :param reverse:    boolean used to reverse the sort order
     :param color_mods: tuple of numbers used to modify sorted pixels
-    :param kwargs:     any keyword arguments that will be passed to the sort_func
+    :param kwargs:     any keyword arguments that will be passed to the sort_func and/or the group_func.
 
     :returns: a list of sorted pixels.
     """
 
     sorted_pixels = []
-    for pixel_list in group_func(pixels, size):
+    for pixel_list in group_func(pixels, size, **kwargs):
         for sorting_group, sort_flag in sort_func(pixel_list, **kwargs):
             if sort_flag:
                 sorted_pixels += [brighten(pixel, color_mods)
@@ -55,7 +55,7 @@ def sort_pixels(pixels, size, group_func, sort_func, key_func, reverse=False, co
                 sorted_pixels += sorting_group
     transpose_function = group_transpose_generators.get(group_func, None)
     if transpose_function is not None:
-        sorted_pixels = group_transpose_generators[group_func](sorted_pixels, size)
+        sorted_pixels = group_transpose_generators[group_func](sorted_pixels, size, **kwargs)
     return sorted_pixels
 
 def sort_image(src, grouping_function, sort_function, key_function, reverse=False, color_mods=(1, 1, 1), **kwargs):
@@ -133,13 +133,24 @@ def sort_bands(src, group_tuple, sort_tuple, reverse=(False, False, False), pixe
 
 def main():
     glitch = sort_image(
-        "/home/mark/data/pictures/glitch/input/dolomes.jpg",
+        "/home/mark/data/pictures/glitch/input/test_big.png",
+        "Linear Slope",
+        "Linear",
+        "Blue",
+        False,
+        color_mods=(1, 1, 1),
+        slope=(-1, 1)
+    )
+    myshow(glitch)
+    glitch2 = sort_image(
+        "/home/mark/data/pictures/glitch/input/test_big.png",
         "Diagonals",
         "Linear",
-        "Brightness (fast)",
+        "Blue",
         False,
         color_mods=(1, 1, 1)
     )
+    myshow(glitch2)
     #myshow(glitch)
     #glitch = sort_bands(
     #        "/home/mark/data/pictures/glitch/input/banquet.jpg",
@@ -147,7 +158,6 @@ def main():
     #        (shutters, linear_sort, tracers),
     #        (False, False, False),
     #)
-    myshow(glitch)
 
 
 if __name__ == "__main__":
