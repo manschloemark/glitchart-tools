@@ -28,17 +28,17 @@ def rows(source_pixels, source_size, **kwargs):
         yield source_pixels[x : x + source_size[0]]
 
 
-def transpose_list(source_list, pitch):
+def columns_fix(source_list, source_size):
     """ Transpose a list so its columns are rows.
 
     :param source_list: a list of pixels.
-    :param pitch: an integer denoting the length of a line.
+    :param pitch: PIL Image size attribute, a tuple with two ints.
     :returns: a list of pixels.
     """
 
     result = []
-    for y in range(0, pitch):
-        result += source_list[y :: pitch]
+    for y in range(0, source_size[1]):
+        result += source_list[y :: source_size[1]]
     return result
 
 
@@ -55,6 +55,42 @@ def columns(source_pixels, source_size, **kwargs):
 
     for x in range(0, source_size[0]):
         yield source_pixels[x : : source_size[0]]
+
+
+def diagonals_fix(source_pixels, source_size):
+    result = []
+    index = 0
+    row_length = 0
+    for _ in range(len(source_pixels)):
+            result.append(source_pixels[index])
+            row_length += 1
+            if row_length == source_size[0]:
+                index += 1
+                row_length = 0
+            else:
+                index += source_size[1]
+            if index > len(source_pixels):
+                index %= len(source_pixels)
+    return result
+
+def diagonals(source_pixels, source_size, **kwargs):
+    """ Generator that yields diagonals from a list of pixels.
+
+    :param source_pixels: a list of pixels.
+    :param source_size:   an interable containing the image's (width, height).
+    :returns: columns as lists of pixels.
+    """
+    # This function is making me realize that using indices to access the array would be convenient.
+    for x in range(source_size[0]):
+        x_index = x
+        line = []
+        for y in range(source_size[1]):
+            if x_index >= source_size[0]:
+                x_index = 0
+            line.append(source_pixels[x_index + (y * source_size[0])])
+            x_index += 1
+        yield line
+
 
 
 # Generators / Functions that yield / return sortable tuples.
@@ -188,5 +224,6 @@ def tracers_wobbly(line, tracer_length=44, border_width=2, **kwargs):
             i += 1
 
 
-group_generators = {"Linear": linear, "Rows": rows, "Columns": columns}
+group_generators = {"Linear": linear, "Rows": rows, "Columns": columns, "Diagonals": diagonals}
+group_transpose_generators = {columns: columns_fix, diagonals: diagonals_fix}
 sort_generators = {"Linear": linear_sort, "Shutters": shutters, "Variable Shutters": variable_shutters, "Tracers": tracers, "Wobbly Tracers": tracers_wobbly}

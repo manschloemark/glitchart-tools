@@ -53,8 +53,9 @@ def sort_pixels(pixels, size, group_func, sort_func, key_func, reverse=False, co
                                                      reverse=reverse)]
             else:
                 sorted_pixels += sorting_group
-    if group_func is columns:
-        sorted_pixels = transpose_list(sorted_pixels, size[1])
+    transpose_function = group_transpose_generators.get(group_func, None)
+    if transpose_function is not None:
+        sorted_pixels = group_transpose_generators[group_func](sorted_pixels, size)
     return sorted_pixels
 
 def sort_image(src, grouping_function, sort_function, key_function, reverse=False, color_mods=(1, 1, 1), **kwargs):
@@ -131,22 +132,22 @@ def sort_bands(src, group_tuple, sort_tuple, reverse=(False, False, False), pixe
     return glitch
 
 def main():
-    #glitch = sort_image(
-    #    "/home/mark/data/pictures/glitch/input/banquet.jpg",
-    #    "Linear",
-    #    "Linear",
-    #    "Brightness (fast)",
-    #    False,
-    #    color_mods=(1.5, 1.5, 2.0)
-    #)
+    glitch = sort_image(
+        "/home/mark/data/pictures/glitch/input/dolomes.jpg",
+        "Diagonals",
+        "Linear",
+        "Brightness (fast)",
+        False,
+        color_mods=(1, 1, 1)
+    )
     #myshow(glitch)
-    glitch = sort_bands(
-            "/home/mark/data/pictures/glitch/input/banquet.jpg",
-            (linear, rows, columns),
-            (shutters, linear_sort, tracers),
-            (False, False, False),
-     )
-    glitch.show()
+    #glitch = sort_bands(
+    #        "/home/mark/data/pictures/glitch/input/banquet.jpg",
+    #        (linear, rows, columns),
+    #        (shutters, linear_sort, tracers),
+    #        (False, False, False),
+    #)
+    myshow(glitch)
 
 
 if __name__ == "__main__":
