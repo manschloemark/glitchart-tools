@@ -9,7 +9,7 @@ I'll be adding more tools to perform all sorts of glitches, some emulating actua
 
 ### Pixelsorting
 
-### Line Offsets
+### (Coming Soon) Line Offsets
 
 ## Requirements
 - Python 3.6+

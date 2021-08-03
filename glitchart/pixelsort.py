@@ -133,22 +133,23 @@ def sort_bands(src, group_tuple, sort_tuple, reverse=(False, False, False), pixe
 
 def main():
     glitch = sort_image(
-        "/home/mark/data/pictures/glitch/input/test_big.png",
-        "Linear Slope",
-        "Linear",
-        "Blue",
-        False,
-        color_mods=(1, 1, 1),
-        slope=(-1, 1)
-    )
-    myshow(glitch)
-    glitch2 = sort_image(
-        "/home/mark/data/pictures/glitch/input/test_big.png",
+        "/home/mark/data/pictures/glitch/input/hasui.jpg",
         "Diagonals",
         "Linear",
         "Blue",
         False,
-        color_mods=(1, 1, 1)
+        color_mods=(1, 1, 1),
+        flip_slope=False
+    )
+    myshow(glitch)
+    glitch2 = sort_image(
+        "/home/mark/data/pictures/glitch/input/hasui.jpg",
+        "Diagonals",
+        "Linear",
+        "Blue",
+        False,
+        color_mods=(1, 1, 1),
+        flip_slope=True
     )
     myshow(glitch2)
     #myshow(glitch)
