@@ -57,7 +57,49 @@ def columns(source_pixels, source_size, **kwargs):
         yield source_pixels[x : : source_size[0]]
 
 
-def diagonals_fix(source_pixels, source_size, slope=(1, 1), **kwargs):
+def diagonals_fix(source_pixels, source_size, **kwargs):
+    # This is probably pretty slow but it's the easiest way I can think to do this rn
+    pitch, height = source_size
+    result = [0] * (pitch * height)
+    x = start_x = 0
+    y = start_y = height - 1
+    for pixel in source_pixels:
+        result[x + (y * pitch)] = pixel
+        x += 1
+        y += 1
+        if x == pitch or y == height:
+            if start_y != 0:
+                start_y -= 1
+            else:
+                start_x += 1
+            x = start_x
+            y = start_y
+    return result
+
+def diagonals(source_pixels, source_size, **kwargs):
+    """ Generator that yields diagonal lines from an image. Starts from one corner to the opposite. """
+    pitch, height = source_size
+    # TODO make this capable of beginning at any corner
+    # Starting at bottom left corner
+    start_x = 0
+    start_y = height - 1
+    for i in range(source_size[0] + source_size[1] - 1):
+        line = []
+        x = start_x
+        y = start_y
+        while y < height and x < pitch:
+            line.append(source_pixels[x + (y * pitch)])
+            x += 1
+            y += 1
+        if start_y > 0:
+            start_y -= 1
+        else:
+            start_x += 1
+        yield line
+
+
+
+def wrapping_diagonals_fix(source_pixels, source_size, **kwargs):
     result = []
     index = 0
     row_length = 0
@@ -73,7 +115,7 @@ def diagonals_fix(source_pixels, source_size, slope=(1, 1), **kwargs):
                 index %= len(source_pixels)
     return result
 
-def diagonals(source_pixels, source_size):
+def wrapping_diagonals(source_pixels, source_size, **kwargs):
     """ Generator that yields diagonals from a list of pixels.
 
     :param source_pixels: a list of pixels.
@@ -92,16 +134,18 @@ def diagonals(source_pixels, source_size):
         yield line
 
 
-def linear_slope_fix(source_pixels, source_size, slope=None, **kwargs):
+def linear_slope_fix(source_pixels, source_size, slope=(1, 1), **kwargs):
     """ Helper function that rearranges a list after it has gone through linear_slope. """
-    # Copy all of the loop setup from linear_slope
+    # NOTE : do this while I'm still working on the proper slope fix.
+    return wrapping_diagonals_fix(source_pixels, source_size)
     # Defaults
+    pitch = source_size[0]
     start_x = 0
     end_x = source_size[0]
     column_iterator = range(source_size[0])
     start_y = 0
-    end_y = source_size[1]
-    row_iterator = range(source_size[1])
+    end_y = source_size[1] * source_size[0]
+    row_iterator = range(0, source_size[0] * source_size[1], pitch)
 
     dx, dy = slope # NOTE not sure on whether the tuple should be (dx, dy) or (dy, dx).
     if dx < 0:
@@ -109,63 +153,68 @@ def linear_slope_fix(source_pixels, source_size, slope=None, **kwargs):
         end_x = -1
         column_iterator = range(start_x, -1, -1)
     if dy < 0:
-        start_y = source_size[1] - 1
+        start_y = (source_size[1] - 1) * pitch
         end_y = -1
-        row_iterator = range(start_y, -1, -1)
-
-    # The axis that takes fewer loops will be used as the inner loop
-    if dx:
-        x_increments = source_size[0] / dx
-    else:
-        x_increments = 0
-    if dy:
-        y_increments = source_size[1] / dy
-    else:
-        y_increments = 0
-    if abs(y_increments) < abs(x_increments):
-        outer_iterator = row_iterator
-        inner_iterator = column_iterator
+        row_iterator = range(start_y, -1, -1 * pitch)
+    # The index of source_pixels that must be mapped to index 0 of result 
+    # depends on the absolute values and signs of the slope.
+    # If the slope is (+ / +) then index 0 is at index 0 of list 0
+    # If the slope is (+ / -) then index 0 is at index 0 of the last list.
+    # If the slope is (- / +) then index 0 depends on the magnitude of the slope.
+    # If the slope is (- / -) then index 0 depends on the magnitude of the slope.
+    if abs(dy) < abs(dx):
         start_i = start_y
         end_i = end_y
         start_j = start_x
         end_j = end_x
         di = dy
         dj = dx
-        j_pitch = source_size[1]
     else:
-        outer_iterator = column_iterator
-        inner_iterator = row_iterator
         start_i = start_x
         end_i = end_x
         start_j = start_y
         end_j = end_y
         di = dx
         dj = dy
-        j_pitch = source_size[0]
+    d_inc = 1
+    offset_inc = 1
+    if di < 0:
+        d_inc = -1
+        columns_reversed = True
+        start_x = source_size[0] - 1
+        end_x = -1
+        column_iterator = range(start_x, -1, -1)
+    if dj < 0:
+        offset_inc = -1
+        rows_reversed = True
+        start_y = (source_size[1] - 1) * pitch
+        end_y = -1
+        row_iterator = range(start_y, -1, -1 * pitch)
 
-    for i in outer_iterator:
-        i_index = i
-        line = []
-        di_remaining = abs(di)
-        dj_remaining = abs(dj)
-        for j in inner_iterator:
-            if i_index == end_i:
-                i_index = start_i
-            line.append(source_pixels[i_index + (j * j_pitch)])
-            if di_remaining > 0:
-                i_index += di
-                di_remaining -= 1
-            dj_remaining -= 1
-            if dj_remaining == 0:
-                di_remaining = di
-                dj_remaining = dj
-        yield line
+    d_len = source_size[0]
+    diag_width = 1 + dx * (source_size[1] - 1 / dy)
+
+    start_col = start_x
+    start_row = start_y
+    if start_row > 0:
+        start_offset_line_index = start_col - diag_width
+    start_offset_index_of_line = start_row
+    d_num = start_offset_line_index
+    i_index = start_offset_index_of_line
+    i_increment = 1
+    wrap_index = source_size[0]
+    row_len = 0
+    for _ in range(len(source_pixels)):
+        result.append(d_num * d_len + offset)
+        if di_ctr:
+            col_num += col_inc
+            if col_num == wrap_index:
+                i_index += i_increment
+
+    return result
 
 
-
-# NOTE I just relized this is kind of flawed because it's possible to make the slopes such that
-#      you don't touch all of the pixels in the image.
-def linear_slope(source_pixels, source_size, slope=None, **kwargs):
+def linear_slope(source_pixels, source_size, slope=(1, 1), **kwargs):
     """ Generator that yields lines with a linear slope from a list of pixels
 
     :param source_pixels: a list of pixels.
@@ -174,12 +223,13 @@ def linear_slope(source_pixels, source_size, slope=None, **kwargs):
     :returns: columns as lists of pixels.
     """
     # Defaults
+    pitch = source_size[0]
     start_x = 0
     end_x = source_size[0]
     column_iterator = range(source_size[0])
     start_y = 0
-    end_y = source_size[1]
-    row_iterator = range(source_size[1])
+    end_y = source_size[1] * source_size[0]
+    row_iterator = range(0, source_size[0] * source_size[1], pitch)
 
     dx, dy = slope # NOTE not sure on whether the tuple should be (dx, dy) or (dy, dx).
     if dx < 0:
@@ -187,20 +237,11 @@ def linear_slope(source_pixels, source_size, slope=None, **kwargs):
         end_x = -1
         column_iterator = range(start_x, -1, -1)
     if dy < 0:
-        start_y = source_size[1] - 1
+        start_y = (source_size[1] - 1) * pitch
         end_y = -1
-        row_iterator = range(start_y, -1, -1)
+        row_iterator = range(start_y, -1, -1 * pitch)
 
-    # The axis that takes fewer loops will be used as the inner loop
-    if dx:
-        x_increments = source_size[0] / dx
-    else:
-        x_increments = 0
-    if dy:
-        y_increments = source_size[1] / dy
-    else:
-        y_increments = 0
-    if abs(y_increments) < abs(x_increments):
+    if abs(dy) < abs(dx):
         outer_iterator = row_iterator
         inner_iterator = column_iterator
         start_i = start_y
@@ -208,8 +249,8 @@ def linear_slope(source_pixels, source_size, slope=None, **kwargs):
         start_j = start_x
         end_j = end_x
         di = dy
+        di_increment = dy * pitch
         dj = dx
-        j_pitch = source_size[1]
     else:
         outer_iterator = column_iterator
         inner_iterator = row_iterator
@@ -218,14 +259,12 @@ def linear_slope(source_pixels, source_size, slope=None, **kwargs):
         start_j = start_y
         end_j = end_y
         di = dx
+        di_increment = dx
         dj = dy
-        j_pitch = source_size[0]
 
-    # NOTE the thing about having a slope that is not 1:1 and mapping it to a grid is that the order
-    #      you handle the unevenness is kind of arbitrary.
-    #      Like, if you change y 2 for every 1 x, how do you do it?
-    #      Do you increment (1x, 1y) and (0x, 1y) or vice-versa?
-    # NOTE in my code I will be doing it the first way.
+    print(start_i)
+    print(pitch)
+    print(end_i)
     for i in outer_iterator:
         i_index = i
         line = []
@@ -234,9 +273,9 @@ def linear_slope(source_pixels, source_size, slope=None, **kwargs):
         for j in inner_iterator:
             if i_index == end_i:
                 i_index = start_i
-            line.append(source_pixels[i_index + (j * j_pitch)])
+            line.append(source_pixels[i_index + j])
             if di_remaining > 0:
-                i_index += di
+                i_index += di_increment
                 di_remaining -= 1
             dj_remaining -= 1
             if dj_remaining == 0:
@@ -244,6 +283,156 @@ def linear_slope(source_pixels, source_size, slope=None, **kwargs):
                 dj_remaining = dj
         yield line
 
+# NOTE commenting this version out because it is slightly different and I'm not sure I want it.
+#      the diff b/t this and the used version is that this chooses the direction of the line
+#      based on the width/dx and height/dy instead of the magnitudes of dx and dy.
+#def linear_slope_fix(source_pixels, source_size, slope=None, **kwargs):
+#    """ Helper function that rearranges a list after it has gone through linear_slope. """
+#    # Copy all of the loop setup from linear_slope
+#    # Defaults
+#    pitch = source_size[0]
+#    start_x = 0
+#    end_x = source_size[0]
+#    column_iterator = range(source_size[0])
+#    start_y = 0
+#    end_y = source_size[1]
+#    row_iterator = range(0, source_size[0] * source_size[1], pitch)
+#
+#    dx, dy = slope # NOTE not sure on whether the tuple should be (dx, dy) or (dy, dx).
+#    if dx < 0:
+#        start_x = source_size[0] - 1
+#        end_x = -1
+#        column_iterator = range(start_x, -1, -1)
+#    if dy < 0:
+#        start_y = (source_size[1] - 1) * pitch
+#        end_y = -1
+#        row_iterator = range(start_y, -1, -1 * pitch)
+#
+#    # The axis that takes fewer loops will be used as the inner loop
+#    if dx:
+#        x_increments = source_size[0] / dx
+#    else:
+#        x_increments = 0
+#    if dy:
+#        y_increments = source_size[1] / dy
+#    else:
+#        y_increments = 0
+#    if abs(y_increments) < abs(x_increments):
+#        outer_iterator = row_iterator
+#        inner_iterator = column_iterator
+#        start_i = start_y
+#        end_i = end_y
+#        start_j = start_x
+#        end_j = end_x
+#        di = dy * pitch
+#        dj = dx
+#    else:
+#        outer_iterator = column_iterator
+#        inner_iterator = row_iterator
+#        start_i = start_x
+#        end_i = end_x
+#        start_j = start_y
+#        end_j = end_y
+#        di = dx
+#        dj = dy * pitch
+#
+#    for i in outer_iterator:
+#        i_index = i
+#        line = []
+#        di_remaining = abs(di)
+#        dj_remaining = abs(dj)
+#        for j in inner_iterator:
+#            if i_index == end_i:
+#                i_index = start_i
+#            line.append(source_pixels[i_index + j])
+#            if di_remaining > 0:
+#                i_index += di
+#                di_remaining -= 1
+#            dj_remaining -= 1
+#            if dj_remaining == 0:
+#                di_remaining = di
+#                dj_remaining = dj
+#        yield line
+#
+#
+#
+#def linear_slope(source_pixels, source_size, slope=None, **kwargs):
+#    """ Generator that yields lines with a linear slope from a list of pixels
+#
+#    :param source_pixels: a list of pixels.
+#    :param source_size:   an interable containing the image's (width, height).
+#    :param slope: a tuple containing the rise and run, the change in x and y.
+#    :returns: columns as lists of pixels.
+#    """
+#    # Defaults
+#    pitch = source_size[0]
+#    start_x = 0
+#    end_x = source_size[0]
+#    column_iterator = range(source_size[0])
+#    start_y = 0
+#    end_y = source_size[1] * source_size[0]
+#    row_iterator = range(0, source_size[0] * source_size[1], pitch)
+#
+#    dx, dy = slope # NOTE not sure on whether the tuple should be (dx, dy) or (dy, dx).
+#    if dx < 0:
+#        start_x = source_size[0] - 1
+#        end_x = -1
+#        column_iterator = range(start_x, -1, -1)
+#    if dy < 0:
+#        start_y = (source_size[1] - 1) * pitch
+#        end_y = -1
+#        row_iterator = range(start_y, -1, -1 * pitch)
+#
+#    # The axis that takes fewer loops will be used as the inner loop
+#    if dx:
+#        x_increments = source_size[0] / dx
+#    else:
+#        x_increments = 0
+#    if dy:
+#        y_increments = source_size[1] / dy
+#    else:
+#        y_increments = 0
+#    if abs(y_increments) > abs(x_increments):
+#        outer_iterator = row_iterator
+#        inner_iterator = column_iterator
+#        start_i = start_y
+#        end_i = end_y
+#        start_j = start_x
+#        end_j = end_x
+#        di = dy
+#        di_increment = dy * pitch
+#        dj = dx
+#    else:
+#        outer_iterator = column_iterator
+#        inner_iterator = row_iterator
+#        start_i = start_x
+#        end_i = end_x
+#        start_j = start_y
+#        end_j = end_y
+#        di = dx
+#        di_increment = dx
+#        dj = dy
+#
+#    print(start_i)
+#    print(pitch)
+#    print(end_i)
+#    for i in outer_iterator:
+#        i_index = i
+#        line = []
+#        di_remaining = abs(di)
+#        dj_remaining = abs(dj)
+#        for j in inner_iterator:
+#            if i_index == end_i:
+#                i_index = start_i
+#            line.append(source_pixels[i_index + j])
+#            if di_remaining > 0:
+#                i_index += di_increment
+#                di_remaining -= 1
+#            dj_remaining -= 1
+#            if dj_remaining == 0:
+#                di_remaining = di
+#                dj_remaining = dj
+#        yield line
 
 # Generators / Functions that yield / return sortable tuples.
 # The first item is the list of pixels
@@ -376,6 +565,6 @@ def tracers_wobbly(line, tracer_length=44, border_width=2, **kwargs):
             i += 1
 
 
-group_generators = {"Linear": linear, "Rows": rows, "Columns": columns, "Diagonals": diagonals, "Linear Slope": linear_slope}
-group_transpose_generators = {columns: columns_fix, diagonals: diagonals_fix, linear_slope: diagonals_fix}
+group_generators = {"Linear": linear, "Rows": rows, "Columns": columns, "Diagonals": diagonals, "Wrapping Diagonals": wrapping_diagonals, "Linear Slope": linear_slope}
+group_transpose_generators = {columns: columns_fix, diagonals: diagonals_fix, linear_slope: linear_slope_fix, wrapping_diagonals: wrapping_diagonals_fix}
 sort_generators = {"Linear": linear_sort, "Shutters": shutters, "Variable Shutters": variable_shutters, "Tracers": tracers, "Wobbly Tracers": tracers_wobbly}
