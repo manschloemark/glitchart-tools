@@ -300,6 +300,6 @@ def tracers_wobbly(line, tracer_length=44, border_width=2, **kwargs):
             i += 1
 
 
-group_generators = {"Linear": linear, "Rows": rows, "Columns": columns, "Diagonals": diagonals, "Wrapping Diagonals": wrapping_diagonals, "Linear Slope": linear_slope}
+group_generators = {"Linear": linear, "Rows": rows, "Columns": columns, "Diagonals": diagonals, "Wrapping Diagonals": wrapping_diagonals}
 group_transpose_generators = {columns: columns_fix, diagonals: diagonals_fix, wrapping_diagonals: wrapping_diagonals_fix}
 sort_generators = {"Linear": linear_sort, "Shutters": shutters, "Variable Shutters": variable_shutters, "Tracers": tracers, "Wobbly Tracers": tracers_wobbly}
