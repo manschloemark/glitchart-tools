@@ -160,6 +160,25 @@ class PixelsortRegionArgs(QWidget):
     def get_kwargs(self):
         raise NotImplementedError
 
+class DiagonalArgs(PixelsortRegionArgs):
+    """ Diagonal Group Parameters:
+    Flip Slope: boolean
+    """
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QVBoxLayout(self)
+        self.flip_slope_checkbox = QCheckBox("Flip Lines")
+        self.layout.addWidget(self.flip_slope_checkbox)
+
+    def get_kwargs(self):
+        kwargs = dict()
+        kwargs["flip_slope"] = self.flip_slope_checkbox.isChecked()
+        return kwargs
+
+
 class ShutterSortArgs(PixelsortRegionArgs):
     """ Shutter Sort parameters:
             Shutter Width/Height: integer
@@ -287,6 +306,7 @@ def no_params():
 function_param_widgets = {
     "Linear": no_params,
     "Rows": no_params, "Columns": no_params,
+    "Diagonals": DiagonalArgs,
     "Shutters": ShutterSortArgs, "Variable Shutters": VariableShutterSortArgs,
     "Tracers": TracerSortArgs, "Wobbly Tracers": TracerSortArgs
     }
@@ -317,6 +337,7 @@ class PixelSortInput(QWidget):
         groupby_label = QLabel("Delineate image by: ")
         self.group_function_cb = combobox_with_keys(groupby.group_generators.keys())
         self.group_function_cb .currentTextChanged.connect(self.groupFunctionChanged)
+        self.group_function_params = None
 
         sort_function_label = QLabel("Sort image by: ")
         self.sort_function_cb = combobox_with_keys(groupby.sort_generators.keys())
@@ -341,7 +362,14 @@ class PixelSortInput(QWidget):
         self.layout.addRow(self.reverse_checkbox)
     
     def groupFunctionChanged(self, key):
-        pass
+        if self.group_function_params:
+            self.group_function_params.setParent(None)
+        self.group_function_params = function_param_widgets[key]()
+        if self.group_function_params:
+            self.layout.insertRow(
+                                self.layout.indexOf(self.group_function_cb),
+                                self.group_function_params
+                                )
 
     def sortFunctionChanged(self, key):
         if self.sort_function_params:
@@ -349,7 +377,7 @@ class PixelSortInput(QWidget):
         self.sort_function_params = function_param_widgets[key]()
         if self.sort_function_params:
             self.layout.insertRow(
-                                self.layout.indexOf(self.sort_function_cb) + 1,
+                                self.layout.indexOf(self.sort_function_cb),
                                 self.sort_function_params
                                 )
     
@@ -364,6 +392,8 @@ class PixelSortInput(QWidget):
             sort_key_function = lambda x: x
         reverse = self.reverse_checkbox.checkState()
         kwargs = dict()
+        if self.group_function_params:
+            kwargs.update(self.group_function_params.get_kwargs())
         if self.sort_function_params:
             kwargs.update(self.sort_function_params.get_kwargs())
 
