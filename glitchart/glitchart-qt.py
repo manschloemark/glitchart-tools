@@ -162,7 +162,6 @@ class PixelsortRegionArgs(QWidget):
 
 class ShutterSortArgs(PixelsortRegionArgs):
     """ Shutter Sort parameters:
-            Shutter Direction: rows / column generator from glitchart module
             Shutter Width/Height: integer
     """
 
@@ -577,7 +576,11 @@ class GlitchArtTools(QWidget):
         self.setSourceImage(self.glitch_filename)
 
     def saveGlitchCopy(self, file_destination):
-        self.glitch_qimage.save(file_destination)
+        saved = self.glitch_qimage.save(file_destination)
+        if not saved:
+            # TODO : make qt message box popup
+            print(f"File ({file_destination}) not saved...")
+            #not_saved_message = QMessageBox("
 
     def performGlitch(self):
         if self.glitch_filename and not (self.glitch_filename == self.source_filename):
