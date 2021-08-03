@@ -28,19 +28,6 @@ def rows(source_pixels, source_size, **kwargs):
         yield source_pixels[x : x + source_size[0]]
 
 
-def columns_fix(source_list, source_size, **kwargs):
-    """ Transpose a list so its columns are rows.
-
-    :param source_list: a list of pixels.
-    :param pitch: PIL Image size attribute, a tuple with two ints.
-    :returns: a list of pixels.
-    """
-
-    result = []
-    for y in range(0, source_size[1]):
-        result += source_list[y :: source_size[1]]
-    return result
-
 
 # NOTE : this messes up the order of the pixels.
 #        you need to transpose the list after using this
@@ -56,48 +43,115 @@ def columns(source_pixels, source_size, **kwargs):
     for x in range(0, source_size[0]):
         yield source_pixels[x : : source_size[0]]
 
+def columns_fix(source_list, source_size, **kwargs):
+    """ Transpose a list so its columns are rows.
 
-def diagonals_fix(source_pixels, source_size, **kwargs):
-    # This is probably pretty slow but it's the easiest way I can think to do this rn
-    pitch, height = source_size
-    result = [0] * (pitch * height)
-    x = start_x = 0
-    y = start_y = height - 1
-    for pixel in source_pixels:
-        result[x + (y * pitch)] = pixel
-        x += 1
-        y += 1
-        if x == pitch or y == height:
-            if start_y != 0:
-                start_y -= 1
-            else:
-                start_x += 1
-            x = start_x
-            y = start_y
+    :param source_list: a list of pixels.
+    :param pitch: PIL Image size attribute, a tuple with two ints.
+    :returns: a list of pixels.
+    """
+
+    result = []
+    for y in range(0, source_size[1]):
+        result += source_list[y :: source_size[1]]
     return result
 
-def diagonals(source_pixels, source_size, **kwargs):
-    """ Generator that yields diagonal lines from an image. Starts from one corner to the opposite. """
+
+def diagonals(source_pixels, source_size, flip_slope=False, **kwargs):
+    """ Generator that yields diagonal lines from an image. Starts from one corner to the opposite.
+
+    Currently it starts at the bottom left of the image and travels along the left and top sides.
+    It yields diagonal lines going down and to the right, stopping at the opposite border.
+    TODO : add options to start at any corner.
+
+    :param source_pixels: a list of pixels.
+    :param source_size:   an interable containing the image's (width, height).
+    :param corner:        a flag that determines which direction the lines run
+                          True = backslash False = forwardslash
+    :returns: columns as lists of pixels.
+    """
     pitch, height = source_size
-    # TODO make this capable of beginning at any corner
-    # Starting at bottom left corner
-    start_x = 0
-    start_y = height - 1
+    if flip_slope: # Lines look like this: /
+        start_x = 0
+        start_y = 0
+        end_y = height - 1
+        x_inc = 1
+        y_inc = -1
+        y_border = -1
+    else: # Lines look like this: \
+        start_x = 0
+        start_y = height - 1
+        end_y = 0
+        x_inc = 1
+        y_inc = 1
+        y_border = height
+
     for i in range(source_size[0] + source_size[1] - 1):
         line = []
         x = start_x
         y = start_y
-        while y < height and x < pitch:
+        while y != y_border and x < pitch:
             line.append(source_pixels[x + (y * pitch)])
-            x += 1
-            y += 1
-        if start_y > 0:
-            start_y -= 1
+            x += x_inc
+            y += y_inc
+        if start_y != end_y:
+            start_y -= y_inc
         else:
-            start_x += 1
+            start_x += x_inc
         yield line
 
+def diagonals_fix(source_pixels, source_size, flip_slope=False, **kwargs):
+    pitch, height = source_size
+    if flip_slope:
+        x = start_x = 0
+        y = start_y = 0
+        end_y = height - 1
+        y_border = -1
+        x_inc = 1
+        y_inc = -1
+    else:
+        x = start_x = 0
+        y = start_y = height - 1
+        end_y = 0
+        y_border = height
+        x_inc = 1
+        y_inc = 1
+    # This is probably pretty slow but it's the easiest way I can think to do this rn
+    result = [0] * (pitch * height)
+    for pixel in source_pixels:
+        result[x + (y * pitch)] = pixel
+        x += x_inc
+        y += y_inc
+        if x == pitch or y == y_border:
+            if start_y != end_y:
+                start_y -= y_inc
+            else:
+                start_x += x_inc
+            x = start_x
+            y = start_y
+    return result
 
+
+def wrapping_diagonals(source_pixels, source_size, **kwargs):
+    """ Generator that yields diagonals from a list of pixels.
+
+    This generator starts at the top left of the image (index 0 of the array) and yields lines going down and to
+    the right. This one wraps around the image when it reaches a border.
+
+    :param source_pixels: a list of pixels.
+    :param source_size:   an interable containing the image's (width, height).
+    :returns: columns as lists of pixels.
+    """
+    # This function is making me realize that using indices to access the array would be convenient.
+    for x in range(source_size[0]):
+        x_index = x
+        line = []
+        for y in range(source_size[1]):
+            if x_index >= source_size[0]:
+                x_index = 0
+            line.append(source_pixels[x_index + (y * source_size[0])])
+            x_index += 1
+        yield line
 
 def wrapping_diagonals_fix(source_pixels, source_size, **kwargs):
     result = []
@@ -115,24 +169,80 @@ def wrapping_diagonals_fix(source_pixels, source_size, **kwargs):
                 index %= len(source_pixels)
     return result
 
-def wrapping_diagonals(source_pixels, source_size, **kwargs):
-    """ Generator that yields diagonals from a list of pixels.
+
+# TODO finish implementing this one and it's matching fix function
+def linear_slope(source_pixels, source_size, slope=(1, 1), **kwargs):
+    """ Generator that yields lines with a linear slope from a list of pixels
+
+    The lines yielded start from one edge of the image and stop at the opposite edge following the given slope.
+    If slope = (1, 2) that means it moves right one every 2 rows.
+    A negative value in the slope means it starts at the opposite end of the image.
 
     :param source_pixels: a list of pixels.
     :param source_size:   an interable containing the image's (width, height).
+    :param slope: a tuple containing the rise and run, the change in x and y.
     :returns: columns as lists of pixels.
     """
-    # This function is making me realize that using indices to access the array would be convenient.
-    for x in range(source_size[0]):
-        x_index = x
-        line = []
-        for y in range(source_size[1]):
-            if x_index >= source_size[0]:
-                x_index = 0
-            line.append(source_pixels[x_index + (y * source_size[0])])
-            x_index += 1
-        yield line
+    # Defaults
+    pitch = source_size[0]
+    start_x = 0
+    end_x = source_size[0]
+    column_iterator = range(source_size[0])
+    start_y = 0
+    end_y = source_size[1] * source_size[0]
+    row_iterator = range(0, source_size[0] * source_size[1], pitch)
 
+    dx, dy = slope # NOTE not sure on whether the tuple should be (dx, dy) or (dy, dx).
+    if dx < 0:
+        start_x = source_size[0] - 1
+        end_x = -1
+        column_iterator = range(start_x, -1, -1)
+    if dy < 0:
+        start_y = (source_size[1] - 1) * pitch
+        end_y = -1
+        row_iterator = range(start_y, -1, -1 * pitch)
+
+    if abs(dy) < abs(dx):
+        outer_iterator = row_iterator
+        inner_iterator = column_iterator
+        start_i = start_y
+        end_i = end_y
+        start_j = start_x
+        end_j = end_x
+        di = dy
+        di_increment = dy * pitch
+        dj = dx
+    else:
+        outer_iterator = column_iterator
+        inner_iterator = row_iterator
+        start_i = start_x
+        end_i = end_x
+        start_j = start_y
+        end_j = end_y
+        di = dx
+        di_increment = dx
+        dj = dy
+
+    print(start_i)
+    print(pitch)
+    print(end_i)
+    for i in outer_iterator:
+        i_index = i
+        line = []
+        di_remaining = abs(di)
+        dj_remaining = abs(dj)
+        for j in inner_iterator:
+            if i_index == end_i:
+                i_index = start_i
+            line.append(source_pixels[i_index + j])
+            if di_remaining > 0:
+                i_index += di_increment
+                di_remaining -= 1
+            dj_remaining -= 1
+            if dj_remaining == 0:
+                di_remaining = di
+                dj_remaining = dj
+        yield line
 
 def linear_slope_fix(source_pixels, source_size, slope=(1, 1), **kwargs):
     """ Helper function that rearranges a list after it has gone through linear_slope. """
@@ -212,76 +322,6 @@ def linear_slope_fix(source_pixels, source_size, slope=(1, 1), **kwargs):
                 i_index += i_increment
 
     return result
-
-
-def linear_slope(source_pixels, source_size, slope=(1, 1), **kwargs):
-    """ Generator that yields lines with a linear slope from a list of pixels
-
-    :param source_pixels: a list of pixels.
-    :param source_size:   an interable containing the image's (width, height).
-    :param slope: a tuple containing the rise and run, the change in x and y.
-    :returns: columns as lists of pixels.
-    """
-    # Defaults
-    pitch = source_size[0]
-    start_x = 0
-    end_x = source_size[0]
-    column_iterator = range(source_size[0])
-    start_y = 0
-    end_y = source_size[1] * source_size[0]
-    row_iterator = range(0, source_size[0] * source_size[1], pitch)
-
-    dx, dy = slope # NOTE not sure on whether the tuple should be (dx, dy) or (dy, dx).
-    if dx < 0:
-        start_x = source_size[0] - 1
-        end_x = -1
-        column_iterator = range(start_x, -1, -1)
-    if dy < 0:
-        start_y = (source_size[1] - 1) * pitch
-        end_y = -1
-        row_iterator = range(start_y, -1, -1 * pitch)
-
-    if abs(dy) < abs(dx):
-        outer_iterator = row_iterator
-        inner_iterator = column_iterator
-        start_i = start_y
-        end_i = end_y
-        start_j = start_x
-        end_j = end_x
-        di = dy
-        di_increment = dy * pitch
-        dj = dx
-    else:
-        outer_iterator = column_iterator
-        inner_iterator = row_iterator
-        start_i = start_x
-        end_i = end_x
-        start_j = start_y
-        end_j = end_y
-        di = dx
-        di_increment = dx
-        dj = dy
-
-    print(start_i)
-    print(pitch)
-    print(end_i)
-    for i in outer_iterator:
-        i_index = i
-        line = []
-        di_remaining = abs(di)
-        dj_remaining = abs(dj)
-        for j in inner_iterator:
-            if i_index == end_i:
-                i_index = start_i
-            line.append(source_pixels[i_index + j])
-            if di_remaining > 0:
-                i_index += di_increment
-                di_remaining -= 1
-            dj_remaining -= 1
-            if dj_remaining == 0:
-                di_remaining = di
-                dj_remaining = dj
-        yield line
 
 # NOTE commenting this version out because it is slightly different and I'm not sure I want it.
 #      the diff b/t this and the used version is that this chooses the direction of the line
