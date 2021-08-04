@@ -1,7 +1,7 @@
 """ glitchart-qt - Qt GUI for glitch art tools. Uses PySide6."""
 # Copyright (c) 2021 Mark Schloeman
 
-from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QSlider, QGraphicsScene, QGraphicsView, QFormLayout, QSizePolicy
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QSlider, QFormLayout, QSizePolicy
 from PySide6.QtGui import QPixmap, QImage
 from PySide6 import QtCore
 from PySide6.QtCore import QSize, Qt, QPointF
@@ -14,65 +14,7 @@ import pixelsort
 import groupby
 import pixelstats
 
-# NOTE: maybe I should split this up into multiple modules for readability
-
-#--------------------------------------------------------------------------
-# Image Viewing Widgets
-#--------------------------------------------------------------------------
-
-class ScrollableImageViewer(QWidget):
-    def __init__(self, filename):
-        super().__init__()
-        self.loadUI()
-        self.setPixmap(filename)
-
-    def loadUI(self):
-        self.layout = QVBoxLayout(self)
-
-        self.scene = QGraphicsScene()
-        self.view = ZoomableGraphicsView(self.scene)
-        self.view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
-
-        self.layout.addWidget(self.view)
-
-    def setPixmap(self, filename):
-        self.zoom_level = 1.0
-        self.source_pixmap = QPixmap(filename)
-        self.scene_pixmap = self.source_pixmap
-        self.updateView()
-
-    def updateView(self, center=None):
-        self.scene.clear()
-        self.scene.addPixmap(self.scene_pixmap)
-        if center:
-            self.view.centerOn(center)
-
-
-class ZoomableGraphicsView(QGraphicsView):
-    def wheelEvent(self, event):
-        zoom_delta = event.angleDelta().y() / 8.0 / 360.0
-        new_zoom = 1.0 + zoom_delta
-        self.scale(new_zoom, new_zoom)
-
-
-class ResizableImageWindow(QWidget):
-    def __init__(self, filename):
-        super().__init__()
-        self.source_pixmap = QPixmap(filename)
-        self.initUI()
-
-    def initUI(self):
-        self.layout = QHBoxLayout(self)
-        self.image_label = QLabel()
-        self.display_pixmap = self.source_pixmap.scaled(self.source_pixmap.size().boundedTo(self.size()), Qt.KeepAspectRatio)
-        self.image_label.setPixmap(self.display_pixmap)
-
-        self.layout.addWidget(self.image_label, Qt.AlignCenter)
-
-    def resizeEvent(self, event):
-        self.display_pixmap = self.source_pixmap.scaled(self.size() * 0.98, Qt.KeepAspectRatio)
-        self.image_label.setPixmap(self.display_pixmap)
-
+from imagewidget import *
 
 #--------------------------------------------------------------------------
 # Glitch Parameter Input Widgets
@@ -498,7 +440,8 @@ class GlitchArtTools(QWidget):
         self.image_source_input.editingFinished.connect(self.setImageFromLineInput)
         file_browser_button = QPushButton("Browse...")
         file_browser_button.clicked.connect(self.openFileSelect)
-        self.source_image_label = QLabel("Select an image to edit")
+        self.source_image_view = ScrollableImageViewer()
+        self.source_image_view.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
         image_select_hbox.addWidget(file_select_label)
         image_select_hbox.addWidget(self.image_source_input)
         image_select_hbox.addWidget(file_browser_button)
@@ -530,7 +473,8 @@ class GlitchArtTools(QWidget):
         glitch_file_hbox.setStretch(0, 3)
         glitch_file_hbox.setStretch(1, 1)
 
-        self.glitch_image_label = QLabel("Glitch goes here")
+        self.glitch_image_view = ScrollableImageViewer()
+        self.glitch_image_view.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
         self.enlarge_glitch_image = QPushButton("Enlarge")
         self.enlarge_glitch_image.clicked.connect(lambda _: self.openImageInNewWindow("glitch"))
         self.swap_glitch_button = QPushButton("Use as source image")
@@ -539,14 +483,14 @@ class GlitchArtTools(QWidget):
         self.swap_glitch_button.clicked.connect(self.setGlitchAsSource)
         # Left side - source image selection
         self.main_layout.addLayout(image_select_hbox, 0, 0, Qt.AlignCenter)
-        self.main_layout.addWidget(self.source_image_label, 2, 0, Qt.AlignCenter)# | Qt.AlignTop)
+        self.main_layout.addWidget(self.source_image_view, 2, 0)#, Qt.AlignCenter)# | Qt.AlignTop)
         # Bottom - controls
         self.main_layout.addWidget(self.bottom, 3, 0, 1, 5)
         # Right side - output view / controls
         self.main_layout.addLayout(glitch_file_hbox, 0, 4)
         self.main_layout.addWidget(self.enlarge_glitch_image, 1, 4, Qt.AlignLeft)
         self.main_layout.addWidget(self.swap_glitch_button, 1, 4, Qt.AlignRight)
-        self.main_layout.addWidget(self.glitch_image_label, 2, 4, Qt.AlignCenter)# | Qt.AlignTop)
+        self.main_layout.addWidget(self.glitch_image_view, 2, 4)#, Qt.AlignCenter)# | Qt.AlignTop)
 
         self.setLayout(self.main_layout)
 
@@ -582,9 +526,12 @@ class GlitchArtTools(QWidget):
     def setSourceImage(self, filename):
         self.source_filename = filename
         self.image_source_input.setText(self.source_filename)
-        self.source_pixmap = QPixmap(self.source_filename)
-        self.source_pixmap = self.source_pixmap.scaled(self.source_pixmap.size().boundedTo(self.getMaxImageSize()), Qt.KeepAspectRatio)
-        self.source_image_label.setPixmap(self.source_pixmap)
+        # NOTE this feels like a waste, opening the PIL image only to get the metadata.
+        source_image = Image.open(filename)
+        source_metadata = f'{source_image.size[0]}x{source_image.size[1]} {source_image.format}'
+        #self.source_pixmap = QPixmap(self.source_filename)
+        #self.source_pixmap = self.source_pixmap.scaled(self.source_pixmap.size().boundedTo(self.getMaxImageSize()), Qt.KeepAspectRatio)
+        self.source_image_view.setImage(self.source_filename, source_metadata)
         self.glitch_it_button.setEnabled(True)
 
     # NOTE
@@ -596,16 +543,19 @@ class GlitchArtTools(QWidget):
         self.glitch_qimage = ImageQt(pil_image)
         self.glitch_filename = pil_image.filename
         self.glitch_filename_label.setText(f'Glitch Path: {self.glitch_filename}')
+        glitch_metadata = f'{pil_image.size[0]}x{pil_image.size[1]} {pil_image.format}'
         #self.glitch_pixmap = QPixmap.fromImage(self.glitch_qimage, Qt.NoFormatConversion)
-        self.glitch_pixmap = QPixmap(self.glitch_filename)
-        self.glitch_pixmap = self.glitch_pixmap.scaled(self.glitch_pixmap.size().boundedTo(self.getMaxImageSize()), Qt.KeepAspectRatio)
-        self.glitch_image_label.setPixmap(self.glitch_pixmap)
+        #self.glitch_pixmap = QPixmap(self.glitch_filename)
+        #self.glitch_pixmap = self.glitch_pixmap.scaled(self.glitch_pixmap.size().boundedTo(self.getMaxImageSize()), Qt.KeepAspectRatio)
+        self.glitch_image_view.setImage(self.glitch_filename, glitch_metadata)
         self.swap_glitch_button.setEnabled(True)
 
     def setGlitchAsSource(self):
         self.setSourceImage(self.glitch_filename)
 
     def saveGlitchCopy(self, file_destination):
+        # NOTE should I swap the temp glitch filename with the permanent filename after this?
+        #      I feel like I _should_ but also, why not continue to use the temp?
         saved = self.glitch_qimage.save(file_destination)
         if not saved:
             # TODO : make qt message box popup
@@ -614,7 +564,7 @@ class GlitchArtTools(QWidget):
 
     def performGlitch(self):
         if self.glitch_filename and not (self.glitch_filename == self.source_filename):
-            # NOTE : improve file deletion and stuff
+            # NOTE : improve file deletion
             self.deleteImage(self.glitch_filename)
         glitch_image = self.glitch_widget.performGlitch(self.source_filename)
         util.make_temp_file(glitch_image, os.path.join(self.default_path, "temp"))
