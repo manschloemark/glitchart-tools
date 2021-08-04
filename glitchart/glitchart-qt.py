@@ -430,7 +430,7 @@ class GlitchArtTools(QWidget):
         self.default_pixmap_max_size = self.sizeHint() * 3 / 8
 
         self.initUI()
-        self.setWindowTitle("Pixel Sorting")
+        self.setWindowTitle("Glitch Art Tools - Pixel Sorting")
 
     def sizeHint(self):
         return self._size_hint
@@ -439,8 +439,9 @@ class GlitchArtTools(QWidget):
         self.main_layout = QGridLayout()
 
         image_select_hbox = QHBoxLayout()
-        file_select_label = QLabel("Source Image:")
+        file_select_label = QLabel("Glitch Input:")
         self.image_source_input = QLineEdit()
+        self.image_source_input.setPlaceholderText("Source Image")
         self.image_source_input.editingFinished.connect(self.setImageFromLineInput)
         file_browser_button = QPushButton("Browse...")
         file_browser_button.clicked.connect(self.openFileSelect)
@@ -449,6 +450,22 @@ class GlitchArtTools(QWidget):
         image_select_hbox.addWidget(file_select_label)
         image_select_hbox.addWidget(self.image_source_input)
         image_select_hbox.addWidget(file_browser_button)
+
+        glitch_file_hbox = QHBoxLayout()
+        self.enlarge_glitch_image = QPushButton("Enlarge") # TODO change to 'expand' icon
+        self.enlarge_glitch_image.clicked.connect(lambda _: self.openImageInNewWindow("glitch"))
+        self.swap_glitch_button = QPushButton("Use As Input")
+        self.swap_glitch_button.setEnabled(False)
+        self.swap_glitch_button.clicked.connect(self.setGlitchAsSource)
+        self.save_glitch_copy = QPushButton("Save As...")
+        self.save_glitch_copy.clicked.connect(self.openSaveAs)
+        self.save_glitch_copy.setEnabled(False)
+        glitch_file_hbox.addWidget(self.enlarge_glitch_image)
+        glitch_file_hbox.addWidget(self.swap_glitch_button)
+        glitch_file_hbox.addWidget(self.save_glitch_copy)
+
+        self.glitch_image_view = ScrollableImageViewer()
+        self.glitch_image_view.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
 
         self.bottom = QWidget()
         self.input_layout = QVBoxLayout(self.bottom)
@@ -466,35 +483,14 @@ class GlitchArtTools(QWidget):
 
         self.bottom.setLayout(self.input_layout)
 
-        glitch_file_hbox = QHBoxLayout()
-
-        self.glitch_filename_label = QLabel()
-        save_glitch_copy = QPushButton("Save Copy As")
-        save_glitch_copy.clicked.connect(self.openSaveAs)
-
-        glitch_file_hbox.addWidget(self.glitch_filename_label)
-        glitch_file_hbox.addWidget(save_glitch_copy)
-        glitch_file_hbox.setStretch(0, 3)
-        glitch_file_hbox.setStretch(1, 1)
-
-        self.glitch_image_view = ScrollableImageViewer()
-        self.glitch_image_view.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
-        self.enlarge_glitch_image = QPushButton("Enlarge")
-        self.enlarge_glitch_image.clicked.connect(lambda _: self.openImageInNewWindow("glitch"))
-        self.swap_glitch_button = QPushButton("Use as source image")
-        self.swap_glitch_button.setMaximumWidth(144)
-        self.swap_glitch_button.setEnabled(False)
-        self.swap_glitch_button.clicked.connect(self.setGlitchAsSource)
         # Left side - source image selection
         self.main_layout.addLayout(image_select_hbox, 0, 0, Qt.AlignCenter)
-        self.main_layout.addWidget(self.source_image_view, 2, 0)#, Qt.AlignCenter)# | Qt.AlignTop)
-        # Bottom - controls
-        self.main_layout.addWidget(self.bottom, 3, 0, 1, 5)
+        self.main_layout.addWidget(self.source_image_view, 1, 0)#, Qt.AlignCenter)# | Qt.AlignTop)
         # Right side - output view / controls
         self.main_layout.addLayout(glitch_file_hbox, 0, 4)
-        self.main_layout.addWidget(self.enlarge_glitch_image, 1, 4, Qt.AlignLeft)
-        self.main_layout.addWidget(self.swap_glitch_button, 1, 4, Qt.AlignRight)
-        self.main_layout.addWidget(self.glitch_image_view, 2, 4)#, Qt.AlignCenter)# | Qt.AlignTop)
+        self.main_layout.addWidget(self.glitch_image_view, 1, 4)#, Qt.AlignCenter)# | Qt.AlignTop)
+        # Bottom - controls
+        self.main_layout.addWidget(self.bottom, 2, 0, 1, 5)
 
         self.setLayout(self.main_layout)
 
@@ -546,13 +542,13 @@ class GlitchArtTools(QWidget):
     def setGlitchImage(self, pil_image):
         self.glitch_qimage = ImageQt(pil_image)
         self.glitch_filename = pil_image.filename
-        self.glitch_filename_label.setText(f'Glitch Path: {self.glitch_filename}')
         glitch_metadata = f'{pil_image.size[0]}x{pil_image.size[1]} {pil_image.format}'
         #self.glitch_pixmap = QPixmap.fromImage(self.glitch_qimage, Qt.NoFormatConversion)
         #self.glitch_pixmap = QPixmap(self.glitch_filename)
         #self.glitch_pixmap = self.glitch_pixmap.scaled(self.glitch_pixmap.size().boundedTo(self.getMaxImageSize()), Qt.KeepAspectRatio)
         self.glitch_image_view.setImage(self.glitch_filename, glitch_metadata)
         self.swap_glitch_button.setEnabled(True)
+        self.save_glitch_copy.setEnabled(True)
 
     def setGlitchAsSource(self):
         self.setSourceImage(self.glitch_filename)
