@@ -2,7 +2,7 @@
 # Copyright (c) 2021 Mark Schloeman
 
 from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QSlider, QFormLayout, QSizePolicy, QSpacerItem
-from PySide6.QtGui import QPixmap, QImage
+from PySide6.QtGui import QPixmap, QImage, QPalette
 from PySide6 import QtCore
 from PySide6.QtCore import QSize, Qt, QPointF
 from PIL.ImageQt import ImageQt
@@ -28,6 +28,8 @@ class PixelColorSliders(QWidget):
 
     def initUI(self):
         self.layout = QFormLayout(self)
+        # NOTE can I clean this up by turning this into a loop instead of hard-coding 3 sliders?
+        #      Just to cut down on the line count.
 
         red_label = QLabel("Red")
         self.red_value = QLabel("0%")
@@ -236,12 +238,13 @@ class TracerSortArgs(PixelsortRegionArgs):
         kwargs["variance_threshold"] = self.variance_threshold_input.value() / 100.0
         return kwargs
 
-def no_params():
-    return QWidget()
+class NoParams(PixelsortRegionArgs):
+    def get_kwargs(self):
+        return {}
 
 function_param_widgets = {
-    "Linear": no_params,
-    "Rows": no_params, "Columns": no_params,
+    "Linear": NoParams,
+    "Rows": NoParams, "Columns": NoParams,
     "Diagonals": DiagonalArgs,
     "Shutters": ShutterSortArgs, "Variable Shutters": VariableShutterSortArgs,
     "Tracers": TracerSortArgs, "Wobbly Tracers": TracerSortArgs
@@ -275,22 +278,22 @@ class PixelSortInput(QWidget):
         else:
             self.do_not_sort = QCheckBox("Do not sort")
         self.group_container = QFormLayout()
-        groupby_label = QLabel("Delineate image by: ")
+        groupby_label = QLabel("Delineate Pixels:")
         self.group_function_cb = combobox_with_keys(groupby.group_generators.keys())
         self.group_function_cb .currentTextChanged.connect(self.groupFunctionChanged)
         self.group_function_param_container = QVBoxLayout() # Because indexOf and insertRow are stupid
-        self.group_function_params = QWidget()
+        self.group_function_params = NoParams()
         self.group_function_param_container.addWidget(self.group_function_params)
 
         self.group_container.addRow(groupby_label, self.group_function_cb)
         self.group_container.addRow(self.group_function_param_container)
 
         self.sort_container = QFormLayout()
-        sort_function_label = QLabel("Sort image by: ")
+        sort_function_label = QLabel("Group Pixels:")
         self.sort_function_cb = combobox_with_keys(groupby.sort_generators.keys())
         self.sort_function_cb.currentTextChanged.connect(self.sortFunctionChanged)
         self.sort_function_param_container = QVBoxLayout()
-        self.sort_function_params = QWidget()
+        self.sort_function_params = NoParams()
         self.sort_function_param_container.addWidget(self.sort_function_params)
 
         self.sort_container.addRow(sort_function_label, self.sort_function_cb)
@@ -337,10 +340,8 @@ class PixelSortInput(QWidget):
             sort_key_function = lambda x: x
         reverse = self.reverse_checkbox.checkState()
         kwargs = dict()
-        if isinstance(self.group_function_params, PixelsortRegionArgs):
-            kwargs.update(self.group_function_params.get_kwargs())
-        if isinstance(self.sort_function_params, PixelsortRegionArgs):
-            kwargs.update(self.sort_function_params.get_kwargs())
+        kwargs.update(self.group_function_params.get_kwargs())
+        kwargs.update(self.sort_function_params.get_kwargs())
 
         glitch_image = pixelsort.sort_image(
                                 source_image,
