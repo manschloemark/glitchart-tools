@@ -526,12 +526,7 @@ class GlitchArtTools(QWidget):
     def setSourceImage(self, filename):
         self.source_filename = filename
         self.image_source_input.setText(self.source_filename)
-        # NOTE this feels like a waste, opening the PIL image only to get the metadata.
-        source_image = Image.open(filename)
-        source_metadata = f'{source_image.size[0]}x{source_image.size[1]} {source_image.format}'
-        #self.source_pixmap = QPixmap(self.source_filename)
-        #self.source_pixmap = self.source_pixmap.scaled(self.source_pixmap.size().boundedTo(self.getMaxImageSize()), Qt.KeepAspectRatio)
-        self.source_image_view.setImage(self.source_filename, source_metadata)
+        self.source_image_view.setImage(self.source_filename)
         self.glitch_it_button.setEnabled(True)
 
     # NOTE
@@ -542,11 +537,7 @@ class GlitchArtTools(QWidget):
     def setGlitchImage(self, pil_image):
         self.glitch_qimage = ImageQt(pil_image)
         self.glitch_filename = pil_image.filename
-        glitch_metadata = f'{pil_image.size[0]}x{pil_image.size[1]} {pil_image.format}'
-        #self.glitch_pixmap = QPixmap.fromImage(self.glitch_qimage, Qt.NoFormatConversion)
-        #self.glitch_pixmap = QPixmap(self.glitch_filename)
-        #self.glitch_pixmap = self.glitch_pixmap.scaled(self.glitch_pixmap.size().boundedTo(self.getMaxImageSize()), Qt.KeepAspectRatio)
-        self.glitch_image_view.setImage(self.glitch_filename, glitch_metadata)
+        self.glitch_image_view.setImage(self.glitch_filename)
         self.swap_glitch_button.setEnabled(True)
         self.save_glitch_copy.setEnabled(True)
 
