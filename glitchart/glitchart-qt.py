@@ -1,7 +1,7 @@
 """ glitchart-qt - Qt GUI for glitch art tools. Uses PySide6."""
 # Copyright (c) 2021 Mark Schloeman
 
-from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QSlider, QFormLayout, QSizePolicy
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QSlider, QFormLayout, QSizePolicy, QSpacerItem
 from PySide6.QtGui import QPixmap, QImage
 from PySide6 import QtCore
 from PySide6.QtCore import QSize, Qt, QPointF
@@ -132,7 +132,6 @@ class ShutterSortArgs(PixelsortRegionArgs):
 
     def initUI(self):
         self.layout = QVBoxLayout(self)
-        title = QLabel("Shutter Sort Parameters")
         # TODO : limit size to the height / width of source image
         #        depending on whether the direction is rows / columns
         shutter_size_label = QLabel("Shutter Size:")
@@ -141,7 +140,6 @@ class ShutterSortArgs(PixelsortRegionArgs):
         self.shutter_size_input.setSuffix("px")
         self.shutter_size_input.setMaximum(9999)
 
-        self.layout.addWidget(title)
         self.layout.addWidget(shutter_size_label)
         self.layout.addWidget(self.shutter_size_input)
         self.setLayout(self.layout)
@@ -164,7 +162,6 @@ class VariableShutterSortArgs(PixelsortRegionArgs):
 
     def initUI(self):
         self.layout = QVBoxLayout(self)
-        title = QLabel("Shutter Sort Parameters")
         # TODO : limit size to the height / width of source image
         #        depending on whether the direction is rows / columns
         min_shutter_size_label = QLabel("Min Shutter Size:")
@@ -179,7 +176,6 @@ class VariableShutterSortArgs(PixelsortRegionArgs):
         self.max_shutter_size_input.setSuffix("px")
         self.max_shutter_size_input.setMaximum(9999)
 
-        self.layout.addWidget(title)
         self.layout.addWidget(min_shutter_size_label)
         self.layout.addWidget(self.min_shutter_size_input)
         self.layout.addWidget(max_shutter_size_label)
@@ -205,7 +201,6 @@ class TracerSortArgs(PixelsortRegionArgs):
 
     def initUI(self):
         self.layout = QFormLayout(self)
-        title = QLabel("Tracer Sort Parameters")
         # TODO : learn how to make tooltips that describe the parameters
         # TODO : limit size to the height / width of source image
         #        depending on whether the direction is rows / columns
@@ -228,7 +223,6 @@ class TracerSortArgs(PixelsortRegionArgs):
         self.variance_threshold_input.valueChanged.connect(lambda v: self.variance_threshold_label.setText(f'Variance Limit: {str(v)}%'))
         self.variance_threshold_input.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
 
-        self.layout.addRow(title)
         self.layout.addRow(tracer_length_label, self.tracer_length_input)
         self.layout.addRow(border_width_label, self.border_width_input)
         self.layout.addRow(self.variance_threshold_label, self.variance_threshold_input)
@@ -243,7 +237,7 @@ class TracerSortArgs(PixelsortRegionArgs):
         return kwargs
 
 def no_params():
-    return None
+    return QWidget()
 
 function_param_widgets = {
     "Linear": no_params,
@@ -273,18 +267,34 @@ class PixelSortInput(QWidget):
         self.layout = QFormLayout(self)
         self.layout.setAlignment(Qt.AlignCenter)
 
+        # NOTE I use QWidgets as placeholders so that QFormLayout indexOf() and insertRow() does not break
+        # when not in rgb mode.
         title = QLabel(name)
-        if not self.rgb:
+        if self.rgb:
+            self.do_not_sort = QWidget()
+        else:
             self.do_not_sort = QCheckBox("Do not sort")
+        self.group_container = QFormLayout()
         groupby_label = QLabel("Delineate image by: ")
         self.group_function_cb = combobox_with_keys(groupby.group_generators.keys())
         self.group_function_cb .currentTextChanged.connect(self.groupFunctionChanged)
-        self.group_function_params = None
+        self.group_function_param_container = QVBoxLayout() # Because indexOf and insertRow are stupid
+        self.group_function_params = QWidget()
+        self.group_function_param_container.addWidget(self.group_function_params)
 
+        self.group_container.addRow(groupby_label, self.group_function_cb)
+        self.group_container.addRow(self.group_function_param_container)
+
+        self.sort_container = QFormLayout()
         sort_function_label = QLabel("Sort image by: ")
         self.sort_function_cb = combobox_with_keys(groupby.sort_generators.keys())
         self.sort_function_cb.currentTextChanged.connect(self.sortFunctionChanged)
-        self.sort_function_params = None
+        self.sort_function_param_container = QVBoxLayout()
+        self.sort_function_params = QWidget()
+        self.sort_function_param_container.addWidget(self.sort_function_params)
+
+        self.sort_container.addRow(sort_function_label, self.sort_function_cb)
+        self.sort_container.addRow(self.sort_function_param_container)
 
         if self.rgb:
             sort_key_label = QLabel("Order Pixels By:")
@@ -293,36 +303,29 @@ class PixelSortInput(QWidget):
         self.reverse_checkbox = QCheckBox("Reversed")
 
 
+        self.layout.addRow(title, self.do_not_sort)
+        group_and_sort_container = QHBoxLayout()
+        group_and_sort_container.addLayout(self.group_container)
+        group_and_sort_container.addLayout(self.sort_container)
+        self.layout.addRow(group_and_sort_container)
         if self.rgb:
-            self.layout.addRow(title)
+            sort_key_container = QHBoxLayout()
+            sort_key_container.addWidget(self.sort_key_function_cb)
+            sort_key_container.addWidget(self.reverse_checkbox)
+            self.layout.addRow(sort_key_label, sort_key_container)
         else:
-            self.layout.addRow(title, self.do_not_sort)
-        self.layout.addRow(groupby_label, self.group_function_cb)
-        self.layout.addRow(sort_function_label, self.sort_function_cb)
-        if self.rgb:
-            self.layout.addRow(sort_key_label, self.sort_key_function_cb)
-        self.layout.addRow(self.reverse_checkbox)
-    
+            self.layout.addRow(self.reverse_checkbox)
+
     def groupFunctionChanged(self, key):
-        if self.group_function_params:
-            self.group_function_params.setParent(None)
+        self.group_function_params.setParent(None)
         self.group_function_params = function_param_widgets[key]()
-        if self.group_function_params:
-            self.layout.insertRow(
-                                self.layout.indexOf(self.group_function_cb),
-                                self.group_function_params
-                                )
+        self.group_function_param_container.addWidget(self.group_function_params)
 
     def sortFunctionChanged(self, key):
-        if self.sort_function_params:
-            self.sort_function_params.setParent(None)
+        self.sort_function_params.setParent(None)
         self.sort_function_params = function_param_widgets[key]()
-        if self.sort_function_params:
-            self.layout.insertRow(
-                                self.layout.indexOf(self.sort_function_cb),
-                                self.sort_function_params
-                                )
-    
+        self.sort_function_param_container.addWidget(self.sort_function_params)
+
     def sortImage(self, source_image, color_mods):
         if not self.rgb and self.do_not_sort.isChecked():
             return source_image
@@ -334,9 +337,9 @@ class PixelSortInput(QWidget):
             sort_key_function = lambda x: x
         reverse = self.reverse_checkbox.checkState()
         kwargs = dict()
-        if self.group_function_params:
+        if isinstance(self.group_function_params, PixelsortRegionArgs):
             kwargs.update(self.group_function_params.get_kwargs())
-        if self.sort_function_params:
+        if isinstance(self.sort_function_params, PixelsortRegionArgs):
             kwargs.update(self.sort_function_params.get_kwargs())
 
         glitch_image = pixelsort.sort_image(
