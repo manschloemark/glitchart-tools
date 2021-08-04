@@ -72,6 +72,8 @@ class ScrollableImageViewer(QWidget):
         self.resetView()
 
     def resetView(self, center=True):
+        if self.scene_pixmap is None:
+            return None
         self.syncSlider(1.0)
         self.setViewZoom()
         self.view.fitInView(self.scene_pixmap.rect(), Qt.KeepAspectRatio)
