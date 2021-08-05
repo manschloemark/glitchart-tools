@@ -2,6 +2,7 @@
 # Copyright (c) 2021 Mark Schloeman
 
 import random
+import math
 
 from pixelstats import *
 
@@ -187,8 +188,8 @@ def linear_sort(source_pixels, **kwargs):
     # the same way it works with the others
     return [(source_pixels, True)]
 
-def shutters(source_pixels, shutter_size=None, **kwargs):
-    """ Generator that yields chunks of the image to be sorted.
+def shutters_px(source_pixels, shutter_size=None, **kwargs):
+    """ Generator that yields chunks of the image to be sorted. The chunk size is given in pixels.
 
     :param source_pixels: a list of pixels.
     :param shutter_size:  an integer that tells how many pixels to yield at once. If not it will be 1/10 the length of source_pixels.
@@ -199,8 +200,8 @@ def shutters(source_pixels, shutter_size=None, **kwargs):
     for index in range(0, len(source_pixels), shutter_size):
         yield (source_pixels[index : index + shutter_size], True)
 
-def variable_shutters(source_pixels, min_size=None, max_size=None, **kwargs):
-    """ Generator that yields chunks that vary between a minimum and maximum size
+def variable_shutters_px(source_pixels, min_size=None, max_size=None, **kwargs):
+    """ Generator that yields chunks that vary between a minimum and maximum size. The chunk size is given in pixels.
 
     :param source_pixels: a list of pixels.
     :param min_size:  an integer that determines the minimum number of pixels to yield
@@ -217,6 +218,44 @@ def variable_shutters(source_pixels, min_size=None, max_size=None, **kwargs):
         right_index = left_index + random.randint(min_size, max_size)
         yield (source_pixels[left_index : right_index], True)
         left_index = right_index
+
+def shutters_pct(source_pixels, shutter_size=None, **kwargs):
+    """ Generator that yields chunks of the image to be sorted.
+    The chunk size is given as a percent of the source_pixels.
+
+    :param source_pixels: a list of pixels.
+    :param shutter_size:  a double in range (0.0 - 1.0] that tells how many pixels to yield at once as a % of source_pixels.
+    :returns: tuples containing a chunk of the source pixels and a sorting flag.
+    """
+    if not shutter_size:
+        shutter_size = 0.01
+    pixels_per_shutter = max(int(len(source_pixels) * shutter_size), 1)
+
+    for index in range(0, len(source_pixels), pixels_per_shutter):
+        yield (source_pixels[index : index + pixels_per_shutter], True)
+
+def variable_shutters_pct(source_pixels, min_size=None, max_size=None, **kwargs):
+    """ Generator that yields chunks that vary between a minimum and maximum fraction of source_pixels.
+    The min and max sizes are given as a range of percentages.
+
+    :param source_pixels: a list of pixels.
+    :param min_size:  a double (0.0 - 1.0] that determines the minimum fraction of pixels to yield
+    :param max_size:  a double (0.0 - 1.0] that determines the maximum fraction of pixels to yield
+    :returns: tuples containing a chunk of the source pixels and a sorting flag.
+    """
+    if not min_size:
+        min_size = 0.01
+    if max_size is None:
+        max_size = 0.2
+
+    left_index = 0
+    while left_index < len(source_pixels):
+        shutter_size = min_size + (max_size - min_size) * random.random()
+        right_index = left_index +  max(int(len(source_pixels) * shutter_size), 1)
+        yield (source_pixels[left_index : right_index], True)
+        left_index = right_index
+
+
 
 
 # Complex generators that yield list based on pixel characteristics
@@ -302,4 +341,4 @@ def tracers_wobbly(line, tracer_length=44, border_width=2, **kwargs):
 
 group_generators = {"Linear": linear, "Rows": rows, "Columns": columns, "Diagonals": diagonals, "Wrapping Diagonals": wrapping_diagonals}
 group_transpose_generators = {columns: columns_fix, diagonals: diagonals_fix, wrapping_diagonals: wrapping_diagonals_fix}
-sort_generators = {"Linear": linear_sort, "Shutters": shutters, "Variable Shutters": variable_shutters, "Tracers": tracers, "Wobbly Tracers": tracers_wobbly}
+sort_generators = {"Linear": linear_sort, "Shutters (px)": shutters_px, "Variable Shutters (px)": variable_shutters_px, "Shutters (%)": shutters_pct, "Variable Shutters (%)": variable_shutters_pct, "Tracers": tracers, "Wobbly Tracers": tracers_wobbly}

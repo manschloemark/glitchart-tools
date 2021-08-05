@@ -1,7 +1,7 @@
 """ glitchart-qt - Qt GUI for glitch art tools. Uses PySide6."""
 # Copyright (c) 2021 Mark Schloeman
 
-from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QSlider, QFormLayout, QSizePolicy, QSpacerItem
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QDoubleSpinBox, QSlider, QFormLayout, QSizePolicy, QSpacerItem, QTabWidget
 from PySide6.QtGui import QPixmap, QImage, QPalette
 from PySide6 import QtCore
 from PySide6.QtCore import QSize, Qt, QPointF
@@ -30,7 +30,6 @@ class PixelColorSliders(QWidget):
         self.layout = QFormLayout(self)
         # NOTE can I clean this up by turning this into a loop instead of hard-coding 3 sliders?
         #      Just to cut down on the line count.
-
         red_label = QLabel("Red")
         self.red_value = QLabel("0%")
         self.red_slider = QSlider()
@@ -123,8 +122,8 @@ class DiagonalArgs(PixelsortRegionArgs):
         return kwargs
 
 
-class ShutterSortArgs(PixelsortRegionArgs):
-    """ Shutter Sort parameters:
+class PxShutterSortArgs(PixelsortRegionArgs):
+    """ Pixel-length Shutter Sort parameters:
             Shutter Width/Height: integer
     """
 
@@ -133,7 +132,7 @@ class ShutterSortArgs(PixelsortRegionArgs):
         self.initUI()
 
     def initUI(self):
-        self.layout = QVBoxLayout(self)
+        self.layout = QFormLayout(self)
         # TODO : limit size to the height / width of source image
         #        depending on whether the direction is rows / columns
         shutter_size_label = QLabel("Shutter Size:")
@@ -142,8 +141,7 @@ class ShutterSortArgs(PixelsortRegionArgs):
         self.shutter_size_input.setSuffix("px")
         self.shutter_size_input.setMaximum(9999)
 
-        self.layout.addWidget(shutter_size_label)
-        self.layout.addWidget(self.shutter_size_input)
+        self.layout.addRow(shutter_size_label, self.shutter_size_input)
         self.setLayout(self.layout)
 
     def get_kwargs(self):
@@ -151,8 +149,8 @@ class ShutterSortArgs(PixelsortRegionArgs):
         kwargs["shutter_size"] = self.shutter_size_input.value()
         return kwargs
 
-class VariableShutterSortArgs(PixelsortRegionArgs):
-    """ Variable Shutter Sort parameters:
+class PxVariableShutterSortArgs(PixelsortRegionArgs):
+    """ Variable Pixel-length Shutter Sort parameters:
             Shutter Direction: rows / column generator from glitchart module
             Min Shutter Width/Height: integer
             Max Shutter Width/Height: integer
@@ -163,7 +161,7 @@ class VariableShutterSortArgs(PixelsortRegionArgs):
         self.initUI()
 
     def initUI(self):
-        self.layout = QVBoxLayout(self)
+        self.layout = QFormLayout(self)
         # TODO : limit size to the height / width of source image
         #        depending on whether the direction is rows / columns
         min_shutter_size_label = QLabel("Min Shutter Size:")
@@ -178,16 +176,82 @@ class VariableShutterSortArgs(PixelsortRegionArgs):
         self.max_shutter_size_input.setSuffix("px")
         self.max_shutter_size_input.setMaximum(9999)
 
-        self.layout.addWidget(min_shutter_size_label)
-        self.layout.addWidget(self.min_shutter_size_input)
-        self.layout.addWidget(max_shutter_size_label)
-        self.layout.addWidget(self.max_shutter_size_input)
+        self.layout.addRow(min_shutter_size_label, self.min_shutter_size_input)
+        self.layout.addRow(max_shutter_size_label, self.max_shutter_size_input)
         self.setLayout(self.layout)
 
     def get_kwargs(self):
         kwargs = dict()
         kwargs["min_size"] = self.min_shutter_size_input.value()
         kwargs["max_size"] = self.max_shutter_size_input.value()
+        return kwargs
+
+
+class PctShutterSortArgs(PixelsortRegionArgs):
+    """ %-length Shutter Sort parameters:
+            Shutter Width/Height: integer
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QFormLayout(self)
+        # TODO : limit size to the height / width of source image
+        #        depending on whether the direction is rows / columns
+        shutter_size_label = QLabel("Shutter Size:")
+        self.shutter_size_input = QDoubleSpinBox()
+        self.shutter_size_input.setValue(1.0)
+        self.shutter_size_input.setSuffix("%")
+        self.shutter_size_input.setMinimum(0.001)
+        self.shutter_size_input.setMaximum(100.0)
+
+        self.layout.addRow(shutter_size_label, self.shutter_size_input)
+        self.setLayout(self.layout)
+
+    def get_kwargs(self):
+        kwargs = dict()
+        kwargs["shutter_size"] = self.shutter_size_input.value() / 100.0
+        return kwargs
+
+class PctVariableShutterSortArgs(PixelsortRegionArgs):
+    """ Variable %-length Shutter Sort parameters:
+            Shutter Direction: rows / column generator from glitchart module
+            Min Shutter Width/Height: double
+            Max Shutter Width/Height: double
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QFormLayout(self)
+        # TODO : limit size to the height / width of source image
+        #        depending on whether the direction is rows / columns
+        min_shutter_size_label = QLabel("Min Shutter Size:")
+        self.min_shutter_size_input = QDoubleSpinBox()
+        self.min_shutter_size_input.setValue(1.0)
+        self.min_shutter_size_input.setSuffix("%")
+        self.min_shutter_size_input.setMinimum(0.001)
+        self.min_shutter_size_input.setMaximum(100.0)
+
+        max_shutter_size_label = QLabel("Max Shutter Size:")
+        self.max_shutter_size_input = QDoubleSpinBox()
+        self.max_shutter_size_input.setValue(1.0)
+        self.max_shutter_size_input.setSuffix("%")
+        self.max_shutter_size_input.setMinimum(0.001)
+        self.max_shutter_size_input.setMaximum(100.0)
+
+        self.layout.addRow(min_shutter_size_label, self.min_shutter_size_input)
+        self.layout.addRow(max_shutter_size_label, self.max_shutter_size_input)
+        self.setLayout(self.layout)
+
+    def get_kwargs(self):
+        kwargs = dict()
+        kwargs["min_size"] = self.min_shutter_size_input.value() / 100.0
+        kwargs["max_size"] = self.max_shutter_size_input.value() / 100.0
         return kwargs
 
 
@@ -246,7 +310,8 @@ function_param_widgets = {
     "Linear": NoParams,
     "Rows": NoParams, "Columns": NoParams,
     "Diagonals": DiagonalArgs,
-    "Shutters": ShutterSortArgs, "Variable Shutters": VariableShutterSortArgs,
+    "Shutters (px)": PxShutterSortArgs, "Variable Shutters (px)": PxVariableShutterSortArgs,
+    "Shutters (%)": PctShutterSortArgs, "Variable Shutters (%)": PctVariableShutterSortArgs,
     "Tracers": TracerSortArgs, "Wobbly Tracers": TracerSortArgs
     }
 
@@ -303,11 +368,11 @@ class PixelSortInput(QWidget):
             sort_key_label = QLabel("Order Pixels By:")
             self.sort_key_function_cb = combobox_with_keys(pixelstats.key_functions.keys())
 
-        self.reverse_checkbox = QCheckBox("Reversed")
+        self.reverse_checkbox = QCheckBox("Reverse Sort")
 
 
         self.layout.addRow(title, self.do_not_sort)
-        group_and_sort_container = QHBoxLayout()
+        group_and_sort_container = QVBoxLayout()
         group_and_sort_container.addLayout(self.group_container)
         group_and_sort_container.addLayout(self.sort_container)
         self.layout.addRow(group_and_sort_container)
@@ -363,7 +428,7 @@ class PixelSortWidget(QWidget):
 
         self.sort_bands_checkbox = QCheckBox("Sort channels separately")
         self.sort_bands_checkbox.stateChanged.connect(self.channelsChanged)
-        self.pixelsort_input_container = QHBoxLayout()
+        self.pixelsort_input_container = QVBoxLayout()
         self.pixelsort_input = []
         self.loadInputWidgets()
 
@@ -371,14 +436,17 @@ class PixelSortWidget(QWidget):
         self.color_mod_input = PixelColorSliders()
 
         self.layout.addWidget(self.sort_bands_checkbox, 0, 0, Qt.AlignLeft)
-        self.layout.addLayout(self.pixelsort_input_container, 1, 0, 2, 1, Qt.AlignCenter)
-        self.layout.addWidget(color_mod_label, 1, 1, Qt.AlignRight)
-        self.layout.addWidget(self.color_mod_input, 2, 1, Qt.AlignRight)
+        self.layout.addLayout(self.pixelsort_input_container, 1, 0, 3, 1, Qt.AlignCenter)
+        self.layout.addWidget(self.color_mod_input, 4, 0, 1, 2, Qt.AlignCenter)
+
+        self.setAutoFillBackground(True)
+        self.setBackgroundRole(QPalette.AlternateBase)
+
 
     def channelsChanged(self, checked):
         self._bandsort = checked
         self.loadInputWidgets()
-    
+
     def loadInputWidgets(self):
         for input_widget in self.pixelsort_input:
             input_widget.setParent(None)
@@ -386,8 +454,14 @@ class PixelSortWidget(QWidget):
         if self._bandsort:
             # Bandsort
             red_input = PixelSortInput("Red", rgb=False)
+            red_input.setAutoFillBackground(True)
+            red_input.setBackgroundRole(QPalette.Light)
             green_input = PixelSortInput("Green", rgb=False)
+            green_input.setAutoFillBackground(True)
+            green_input.setBackgroundRole(QPalette.Midlight)
             blue_input = PixelSortInput("Blue", rgb=False)
+            blue_input.setAutoFillBackground(True)
+            blue_input.setBackgroundRole(QPalette.Light)
             self.pixelsort_input = [red_input, green_input, blue_input]
         else:
             # RGB Pixelsort
@@ -436,8 +510,12 @@ class GlitchArtTools(QWidget):
         return self._size_hint
 
     def initUI(self):
-        self.main_layout = QGridLayout()
+        self.main_layout = QHBoxLayout()
 
+        self.image_tabs = QTabWidget()
+
+        self.image_input_tab = QWidget()
+        image_input_layout = QVBoxLayout(self.image_input_tab)
         image_select_hbox = QHBoxLayout()
         file_select_label = QLabel("Glitch Input:")
         self.image_source_input = QLineEdit()
@@ -451,6 +529,11 @@ class GlitchArtTools(QWidget):
         image_select_hbox.addWidget(self.image_source_input)
         image_select_hbox.addWidget(file_browser_button)
 
+        image_input_layout.addLayout(image_select_hbox)
+        image_input_layout.addWidget(self.source_image_view)
+
+        self.image_output_tab = QWidget()
+        image_output_layout = QVBoxLayout(self.image_output_tab)
         glitch_file_hbox = QHBoxLayout()
         self.enlarge_glitch_image = QPushButton("Enlarge") # TODO change to 'expand' icon
         self.enlarge_glitch_image.clicked.connect(lambda _: self.openImageInNewWindow("glitch"))
@@ -463,35 +546,34 @@ class GlitchArtTools(QWidget):
         glitch_file_hbox.addWidget(self.enlarge_glitch_image)
         glitch_file_hbox.addWidget(self.swap_glitch_button)
         glitch_file_hbox.addWidget(self.save_glitch_copy)
-
         self.glitch_image_view = ScrollableImageViewer()
         self.glitch_image_view.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
 
-        self.bottom = QWidget()
-        self.input_layout = QVBoxLayout(self.bottom)
-        self.input_layout.setAlignment(Qt.AlignCenter)
+        image_output_layout.addLayout(glitch_file_hbox)
+        image_output_layout.addWidget(self.glitch_image_view)
+
+        self.image_tabs.addTab(self.image_input_tab, "Input")
+        self.image_tabs.addTab(self.image_output_tab, "Output")
+
+        self.settings_container = QWidget()
+        self.settings_layout = QVBoxLayout(self.settings_container)
+        self.settings_layout.setAlignment(Qt.AlignCenter)
         glitch_settings_label = QLabel("Glitch Settings")
+        glitch_settings_label.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
         # TODO add a control for the type of glitch to perform and make this more abstract.
         self.glitch_widget = PixelSortWidget()
-        self.glitch_it_button = QPushButton("Glitch It!")
+        self.glitch_it_button = QPushButton("Glitch It")
+        self.glitch_it_button.setMaximumWidth(144)
         self.glitch_it_button.setEnabled(False)
         self.glitch_it_button.clicked.connect(self.performGlitch)
 
-        self.input_layout.addWidget(glitch_settings_label)
-        self.input_layout.addWidget(self.glitch_widget)
-        self.input_layout.addWidget(self.glitch_it_button)
+        self.settings_layout.addWidget(glitch_settings_label, Qt.AlignTop | Qt.AlignLeft)
+        self.settings_layout.addWidget(self.glitch_widget)
+        self.settings_layout.addWidget(self.glitch_it_button, Qt.AlignCenter)
+        self.settings_container.setLayout(self.settings_layout)
 
-        self.bottom.setLayout(self.input_layout)
-
-        # Left side - source image selection
-        self.main_layout.addLayout(image_select_hbox, 0, 0, Qt.AlignCenter)
-        self.main_layout.addWidget(self.source_image_view, 1, 0)#, Qt.AlignCenter)# | Qt.AlignTop)
-        # Right side - output view / controls
-        self.main_layout.addLayout(glitch_file_hbox, 0, 4)
-        self.main_layout.addWidget(self.glitch_image_view, 1, 4)#, Qt.AlignCenter)# | Qt.AlignTop)
-        # Bottom - controls
-        self.main_layout.addWidget(self.bottom, 2, 0, 1, 5)
-
+        self.main_layout.addWidget(self.settings_container)
+        self.main_layout.addWidget(self.image_tabs)
         self.setLayout(self.main_layout)
 
     def getMaxImageSize(self):
@@ -542,6 +624,7 @@ class GlitchArtTools(QWidget):
         self.save_glitch_copy.setEnabled(True)
 
     def setGlitchAsSource(self):
+        self.image_tabs.setCurrentWidget(self.image_input_tab)
         self.setSourceImage(self.glitch_filename)
 
     def saveGlitchCopy(self, file_destination):
@@ -559,6 +642,7 @@ class GlitchArtTools(QWidget):
             self.deleteImage(self.glitch_filename)
         glitch_image = self.glitch_widget.performGlitch(self.source_filename)
         util.make_temp_file(glitch_image, os.path.join(self.default_path, "temp"))
+        self.image_tabs.setCurrentWidget(self.image_output_tab)
         self.setGlitchImage(glitch_image)
 
     def deleteImage(self, filename):
