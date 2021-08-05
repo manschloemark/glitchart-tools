@@ -310,6 +310,7 @@ function_param_widgets = {
     "Linear": NoParams,
     "Rows": NoParams, "Columns": NoParams,
     "Diagonals": DiagonalArgs,
+    "Wrapping Diagonals": NoParams,
     "Shutters (px)": PxShutterSortArgs, "Variable Shutters (px)": PxVariableShutterSortArgs,
     "Shutters (%)": PctShutterSortArgs, "Variable Shutters (%)": PctVariableShutterSortArgs,
     "Tracers": TracerSortArgs, "Wobbly Tracers": TracerSortArgs
