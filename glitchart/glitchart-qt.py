@@ -1,7 +1,7 @@
 """ glitchart-qt - Qt GUI for glitch art tools. Uses PySide6."""
 # Copyright (c) 2021 Mark Schloeman
 
-from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QDoubleSpinBox, QSlider, QFormLayout, QSizePolicy, QSpacerItem, QTabWidget
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QDoubleSpinBox, QSlider, QFormLayout, QSizePolicy, QSpacerItem, QTabWidget, QFrame
 from PySide6.QtGui import QPixmap, QImage, QPalette
 from PySide6 import QtCore
 from PySide6.QtCore import QSize, Qt, QPointF
@@ -28,6 +28,7 @@ class PixelColorSliders(QWidget):
 
     def initUI(self):
         self.layout = QFormLayout(self)
+        title = QLabel("Modify Brightness")
         # NOTE can I clean this up by turning this into a loop instead of hard-coding 3 sliders?
         #      Just to cut down on the line count.
         red_label = QLabel("Red")
@@ -37,6 +38,7 @@ class PixelColorSliders(QWidget):
         self.red_slider.setMinimum(-100)
         self.red_slider.setMaximum(100)
         self.red_slider.valueChanged.connect(lambda v: self.red_value.setText(str(v) + "%"))
+        self.red_slider.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
         self.reset_red = QPushButton()
         self.reset_red.setMaximumWidth(16)
         self.reset_red.setMaximumHeight(16)
@@ -66,6 +68,7 @@ class PixelColorSliders(QWidget):
         self.reset_blue.setMaximumHeight(16)
         self.reset_blue.clicked.connect(lambda x: self.blue_slider.setValue(0))
 
+        self.layout.addRow(title)
         self.layout.addRow(red_label, self.red_value)
         self.layout.addRow(self.reset_red, self.red_slider)
         self.layout.addRow(green_label, self.green_value)
@@ -378,12 +381,8 @@ class PixelSortInput(QWidget):
         group_and_sort_container.addLayout(self.sort_container)
         self.layout.addRow(group_and_sort_container)
         if self.rgb:
-            sort_key_container = QHBoxLayout()
-            sort_key_container.addWidget(self.sort_key_function_cb)
-            sort_key_container.addWidget(self.reverse_checkbox)
-            self.layout.addRow(sort_key_label, sort_key_container)
-        else:
-            self.layout.addRow(self.reverse_checkbox)
+            self.layout.addRow(sort_key_label, self.sort_key_function_cb)
+        self.layout.addRow(self.reverse_checkbox)
 
     def groupFunctionChanged(self, key):
         self.group_function_params.setParent(None)
@@ -423,22 +422,27 @@ class PixelSortWidget(QWidget):
         super().__init__(*args, **kwargs)
         self._bandsort = False
         self.initUI()
-    
+
     def initUI(self):
-        self.layout = QGridLayout(self)
+        self.layout = QVBoxLayout(self)
 
         self.sort_bands_checkbox = QCheckBox("Sort channels separately")
         self.sort_bands_checkbox.stateChanged.connect(self.channelsChanged)
-        self.pixelsort_input_container = QVBoxLayout()
+        self.input_container = QWidget()
+        self.input_layout = QVBoxLayout(self.input_container)
         self.pixelsort_input = []
         self.loadInputWidgets()
 
         color_mod_label = QLabel("Modify Sorted Pixels:")
         self.color_mod_input = PixelColorSliders()
 
-        self.layout.addWidget(self.sort_bands_checkbox, 0, 0, Qt.AlignLeft)
-        self.layout.addLayout(self.pixelsort_input_container, 1, 0, 3, 1, Qt.AlignCenter)
-        self.layout.addWidget(self.color_mod_input, 4, 0, 1, 2, Qt.AlignCenter)
+        self.layout.addWidget(self.sort_bands_checkbox, Qt.AlignTop)#, 0, 0)
+        self.layout.addWidget(self.input_container, Qt.AlignTop)#, 1, 0)
+        self.layout.addWidget(self.color_mod_input, Qt.AlignTop)#, 2, 0)
+        self.layout.setStretch(0, 0)
+        self.layout.setStretch(1, 2)
+        self.layout.setStretch(2, 0)
+        self.layout.setAlignment
 
         self.setAutoFillBackground(True)
         self.setBackgroundRole(QPalette.AlternateBase)
@@ -471,8 +475,8 @@ class PixelSortWidget(QWidget):
             #      not sure if this is smart at all but it saves a few loc.
             self.pixelsort_input = [rgb_input]
         for widget in self.pixelsort_input:
-            self.pixelsort_input_container.addWidget(widget)
-    
+            self.input_layout.addWidget(widget)
+
     # NOTE: I'm not sure which class should handle the call to pixelsort.
     #       I think I'll try this way and then if it's slow I'll try the inverse.
     def performGlitch(self, source_filename):
@@ -573,8 +577,17 @@ class GlitchArtTools(QWidget):
         self.settings_layout.addWidget(self.glitch_it_button, Qt.AlignCenter)
         self.settings_container.setLayout(self.settings_layout)
 
+        # Sizing
+        settings_sp = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.settings_container.setSizePolicy(settings_sp)
+
+        main_sp = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        self.image_tabs.setSizePolicy(main_sp)
+
         self.main_layout.addWidget(self.settings_container)
         self.main_layout.addWidget(self.image_tabs)
+        self.main_layout.setStretch(0, 0)
+        self.main_layout.setStretch(1, 1)
         self.setLayout(self.main_layout)
 
     def getMaxImageSize(self):
