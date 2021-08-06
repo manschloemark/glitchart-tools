@@ -1,7 +1,7 @@
 """ glitchart-qt - Qt GUI for glitch art tools. Uses PySide6."""
 # Copyright (c) 2021 Mark Schloeman
 
-from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QDoubleSpinBox, QSlider, QFormLayout, QSizePolicy, QSpacerItem, QTabWidget, QFrame
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QDoubleSpinBox, QSlider, QFormLayout, QSizePolicy, QSpacerItem, QTabWidget, QFrame, QScrollArea
 from PySide6.QtGui import QPixmap, QImage, QPalette
 from PySide6 import QtCore
 from PySide6.QtCore import QSize, Qt, QPointF
@@ -467,18 +467,26 @@ class PixelSortWidget(QWidget):
     def initUI(self):
         self.layout = QVBoxLayout(self)
 
+        expanding_policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
         self.sort_bands_checkbox = QCheckBox("Sort channels separately")
         self.sort_bands_checkbox.stateChanged.connect(self.channelsChanged)
         self.input_container = QWidget()
+        self.input_container.setSizePolicy(expanding_policy)
         self.input_layout = QVBoxLayout(self.input_container)
         self.pixelsort_input = []
         self.loadInputWidgets()
+        self.scrollarea = QScrollArea()
+        self.scrollarea.setWidgetResizable(True)
+        self.scrollarea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scrollarea.setSizePolicy(expanding_policy)
+        self.scrollarea.setWidget(self.input_container)
 
         color_mod_label = QLabel("Modify Sorted Pixels:")
         self.color_mod_input = PixelColorSliders()
 
         self.layout.addWidget(self.sort_bands_checkbox, Qt.AlignTop)#, 0, 0)
-        self.layout.addWidget(self.input_container, Qt.AlignTop)#, 1, 0)
+        self.layout.addWidget(self.scrollarea)#, 1, 0)
         self.layout.addWidget(self.color_mod_input, Qt.AlignTop)#, 2, 0)
         self.layout.setStretch(0, 0)
         self.layout.setStretch(1, 2)
@@ -512,14 +520,11 @@ class PixelSortWidget(QWidget):
         else:
             # RGB Pixelsort
             rgb_input = PixelSortInput("3-Channel", rgb=True)
-            # NOTE keeping pixelsort_input as a list so I can do 'for ... in pixelsort_input'
-            #      not sure if this is smart at all but it saves a few loc.
             self.pixelsort_input = [rgb_input]
         for widget in self.pixelsort_input:
+            widget.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
             self.input_layout.addWidget(widget)
 
-    # NOTE: I'm not sure which class should handle the call to pixelsort.
-    #       I think I'll try this way and then if it's slow I'll try the inverse.
     def performGlitch(self, source_filename):
         source_image = Image.open(source_filename)
         color_mods = self.color_mod_input.getValues()
@@ -608,6 +613,7 @@ class GlitchArtTools(QWidget):
         glitch_settings_label.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
         # TODO add a control for the type of glitch to perform and make this more abstract.
         self.glitch_widget = PixelSortWidget()
+
         self.glitch_it_button = QPushButton("Glitch It")
         self.glitch_it_button.setMaximumWidth(144)
         self.glitch_it_button.setEnabled(False)
@@ -617,6 +623,8 @@ class GlitchArtTools(QWidget):
         self.settings_layout.addWidget(self.glitch_widget)
         self.settings_layout.addWidget(self.glitch_it_button, Qt.AlignCenter)
         self.settings_container.setLayout(self.settings_layout)
+
+        self.settings_layout.setStretch(1, 1)
 
         # Sizing
         settings_sp = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
