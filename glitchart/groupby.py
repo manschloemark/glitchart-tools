@@ -200,14 +200,16 @@ def shutters_px(source_pixels, shutter_size=None, **kwargs):
     for index in range(0, len(source_pixels), shutter_size):
         yield (source_pixels[index : index + shutter_size], True)
 
-def variable_shutters_px(source_pixels, min_size=None, max_size=None, **kwargs):
+def variable_shutters_px(source_pixels, min_size=None, max_size=None, seed=None, **kwargs):
     """ Generator that yields chunks that vary between a minimum and maximum size. The chunk size is given in pixels.
 
     :param source_pixels: a list of pixels.
     :param min_size:  an integer that determines the minimum number of pixels to yield
     :param max_size:  an integer that determines the maximum number of pixels to yield
+    :param seed:      something compatible with python's random.seed().
     :returns: tuples containing a chunk of the source pixels and a sorting flag.
     """
+    random.seed(seed)
     if min_size is None:
         min_size = len(source_pixels) // 10
     if max_size is None:
@@ -234,15 +236,17 @@ def shutters_pct(source_pixels, shutter_size=None, **kwargs):
     for index in range(0, len(source_pixels), pixels_per_shutter):
         yield (source_pixels[index : index + pixels_per_shutter], True)
 
-def variable_shutters_pct(source_pixels, min_size=None, max_size=None, **kwargs):
+def variable_shutters_pct(source_pixels, min_size=None, max_size=None, seed=None, **kwargs):
     """ Generator that yields chunks that vary between a minimum and maximum fraction of source_pixels.
     The min and max sizes are given as a range of percentages.
 
     :param source_pixels: a list of pixels.
     :param min_size:  a double (0.0 - 1.0] that determines the minimum fraction of pixels to yield
     :param max_size:  a double (0.0 - 1.0] that determines the maximum fraction of pixels to yield
+    :param seed:      something compatible with python's random.seed().
     :returns: tuples containing a chunk of the source pixels and a sorting flag.
     """
+    random.seed(seed)
     if not min_size:
         min_size = 0.01
     if max_size is None:
@@ -254,8 +258,6 @@ def variable_shutters_pct(source_pixels, min_size=None, max_size=None, **kwargs)
         right_index = left_index +  max(int(len(source_pixels) * shutter_size), 1)
         yield (source_pixels[left_index : right_index], True)
         left_index = right_index
-
-
 
 
 # Complex generators that yield list based on pixel characteristics
@@ -341,4 +343,4 @@ def tracers_wobbly(line, tracer_length=44, border_width=2, **kwargs):
 
 group_generators = {"Linear": linear, "Rows": rows, "Columns": columns, "Diagonals": diagonals, "Wrapping Diagonals": wrapping_diagonals}
 group_transpose_generators = {columns: columns_fix, diagonals: diagonals_fix, wrapping_diagonals: wrapping_diagonals_fix}
-sort_generators = {"Linear": linear_sort, "Shutters (px)": shutters_px, "Variable Shutters (px)": variable_shutters_px, "Shutters (%)": shutters_pct, "Variable Shutters (%)": variable_shutters_pct, "Tracers": tracers, "Wobbly Tracers": tracers_wobbly}
+sort_generators = {"Linear": linear_sort, "Shutters (px)": shutters_px, "Variable Shutters (px)": variable_shutters_px, "Shutters (%)": shutters_pct, "Variable Shutters (%)": variable_shutters_pct, "Random": variable_shutters_pct, "Tracers": tracers, "Wobbly Tracers": tracers_wobbly}

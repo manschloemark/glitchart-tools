@@ -154,7 +154,6 @@ class PxShutterSortArgs(PixelsortRegionArgs):
 
 class PxVariableShutterSortArgs(PixelsortRegionArgs):
     """ Variable Pixel-length Shutter Sort parameters:
-            Shutter Direction: rows / column generator from glitchart module
             Min Shutter Width/Height: integer
             Max Shutter Width/Height: integer
     """
@@ -187,6 +186,7 @@ class PxVariableShutterSortArgs(PixelsortRegionArgs):
         kwargs = dict()
         kwargs["min_size"] = self.min_shutter_size_input.value()
         kwargs["max_size"] = self.max_shutter_size_input.value()
+        kwargs["seed"] = os.urandom(16) # This is a little overkill
         return kwargs
 
 
@@ -220,7 +220,6 @@ class PctShutterSortArgs(PixelsortRegionArgs):
 
 class PctVariableShutterSortArgs(PixelsortRegionArgs):
     """ Variable %-length Shutter Sort parameters:
-            Shutter Direction: rows / column generator from glitchart module
             Min Shutter Width/Height: double
             Max Shutter Width/Height: double
     """
@@ -255,6 +254,47 @@ class PctVariableShutterSortArgs(PixelsortRegionArgs):
         kwargs = dict()
         kwargs["min_size"] = self.min_shutter_size_input.value() / 100.0
         kwargs["max_size"] = self.max_shutter_size_input.value() / 100.0
+        kwargs["seed"] = os.urandom(16) # This is a little overkill
+        return kwargs
+
+
+class RandomSizeArgs(PixelsortRegionArgs):
+    """ Random length sort parameters:
+            Min Width/Height: double
+            Max Width/Height: double
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QFormLayout(self)
+        # TODO : limit size to the height / width of source image
+        #        depending on whether the direction is rows / columns
+        min_size_label = QLabel("Min Size:")
+        self.min_size_input = QDoubleSpinBox()
+        self.min_size_input.setValue(1.0)
+        self.min_size_input.setSuffix("%")
+        self.min_size_input.setMinimum(0.001)
+        self.min_size_input.setMaximum(100.0)
+
+        max_size_label = QLabel("Max Size:")
+        self.max_size_input = QDoubleSpinBox()
+        self.max_size_input.setValue(1.0)
+        self.max_size_input.setSuffix("%")
+        self.max_size_input.setMinimum(0.001)
+        self.max_size_input.setMaximum(100.0)
+
+        self.layout.addRow(min_size_label, self.min_size_input)
+        self.layout.addRow(max_size_label, self.max_size_input)
+        self.setLayout(self.layout)
+
+    def get_kwargs(self):
+        kwargs = dict()
+        kwargs["min_size"] = self.min_size_input.value() / 100.0
+        kwargs["max_size"] = self.max_size_input.value() / 100.0
+        kwargs["seed"] = None
         return kwargs
 
 
@@ -316,6 +356,7 @@ function_param_widgets = {
     "Wrapping Diagonals": NoParams,
     "Shutters (px)": PxShutterSortArgs, "Variable Shutters (px)": PxVariableShutterSortArgs,
     "Shutters (%)": PctShutterSortArgs, "Variable Shutters (%)": PctVariableShutterSortArgs,
+    "Random": RandomSizeArgs,
     "Tracers": TracerSortArgs, "Wobbly Tracers": TracerSortArgs
     }
 
