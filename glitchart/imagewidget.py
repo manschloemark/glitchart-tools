@@ -32,7 +32,7 @@ class ScrollableImageViewer(QWidget):
         self.image_info_label = QLabel()
         self.zoom_label = QLabel()
         self.zoom_label.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Maximum))
-        self.zero_slider_button = QPushButton()
+        self.zero_slider_button = QPushButton("-")
         self.zero_slider_button.setMaximumWidth(16)
         self.zero_slider_button.setMaximumHeight(16)
         self.zero_slider_button.clicked.connect(self.resetZoom)

@@ -2,7 +2,7 @@
 # Copyright (c) 2021 Mark Schloeman
 
 from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QDoubleSpinBox, QSlider, QFormLayout, QSizePolicy, QSpacerItem, QTabWidget, QFrame, QScrollArea
-from PySide6.QtGui import QPixmap, QImage, QPalette
+from PySide6.QtGui import QPixmap, QImage, QPalette, QIcon
 from PySide6 import QtCore
 from PySide6.QtCore import QSize, Qt, QPointF
 from PIL.ImageQt import ImageQt
@@ -31,6 +31,7 @@ class PixelColorSliders(QWidget):
         title = QLabel("Modify Brightness")
         # NOTE can I clean this up by turning this into a loop instead of hard-coding 3 sliders?
         #      Just to cut down on the line count.
+        reset_icon = QIcon.fromTheme("view-refresh")
         red_label = QLabel("Red")
         self.red_value = QLabel("0%")
         self.red_slider = QSlider()
@@ -39,7 +40,7 @@ class PixelColorSliders(QWidget):
         self.red_slider.setMaximum(100)
         self.red_slider.valueChanged.connect(lambda v: self.red_value.setText(str(v) + "%"))
         self.red_slider.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
-        self.reset_red = QPushButton()
+        self.reset_red = QPushButton("-")
         self.reset_red.setMaximumWidth(16)
         self.reset_red.setMaximumHeight(16)
         self.reset_red.clicked.connect(lambda x: self.red_slider.setValue(0))
@@ -51,7 +52,7 @@ class PixelColorSliders(QWidget):
         self.green_slider.setMinimum(-100)
         self.green_slider.setMaximum(100)
         self.green_slider.valueChanged.connect(lambda v: self.green_value.setText(str(v) + "%"))
-        self.reset_green = QPushButton()
+        self.reset_green = QPushButton("-")
         self.reset_green.setMaximumWidth(16)
         self.reset_green.setMaximumHeight(16)
         self.reset_green.clicked.connect(lambda x: self.green_slider.setValue(0))
@@ -63,7 +64,7 @@ class PixelColorSliders(QWidget):
         self.blue_slider.setMinimum(-100)
         self.blue_slider.setMaximum(100)
         self.blue_slider.valueChanged.connect(lambda v: self.blue_value.setText(str(v) + "%"))
-        self.reset_blue = QPushButton()
+        self.reset_blue = QPushButton("-")
         self.reset_blue.setMaximumWidth(16)
         self.reset_blue.setMaximumHeight(16)
         self.reset_blue.clicked.connect(lambda x: self.blue_slider.setValue(0))
