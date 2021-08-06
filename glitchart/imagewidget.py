@@ -1,7 +1,7 @@
 """ imagewidget - working on a widget to contain the images in glitchart-qt """
 # Copyright (c) 2021 Mark Schloeman
 
-from PySide6.QtWidgets import QLabel, QWidget, QVBoxLayout, QHBoxLayout, QSlider, QGraphicsScene, QGraphicsView, QSizePolicy
+from PySide6.QtWidgets import QLabel, QWidget, QVBoxLayout, QHBoxLayout, QSlider, QGraphicsScene, QGraphicsView, QSizePolicy, QPushButton
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt, Signal
 
@@ -32,6 +32,10 @@ class ScrollableImageViewer(QWidget):
         self.image_info_label = QLabel()
         self.zoom_label = QLabel()
         self.zoom_label.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Maximum))
+        self.zero_slider_button = QPushButton()
+        self.zero_slider_button.setMaximumWidth(16)
+        self.zero_slider_button.setMaximumHeight(16)
+        self.zero_slider_button.clicked.connect(self.resetZoom)
         self.zoom_slider = QSlider()
         self.zoom_slider.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Maximum))
         self.zoom_slider.setOrientation(Qt.Horizontal)
@@ -40,6 +44,7 @@ class ScrollableImageViewer(QWidget):
         self.info_bar.addWidget(self.image_info_label, Qt.AlignLeft)
         self.info_bar.addWidget(self.zoom_label, Qt.AlignRight)
         self.info_bar.addWidget(self.zoom_slider, Qt.AlignRight)
+        self.info_bar.addWidget(self.zero_slider_button, Qt.AlignRight)
         self.info_bar.setAlignment(Qt.AlignRight)
 
         # NOTE the signals have to be kind of weird to prevent
@@ -58,6 +63,10 @@ class ScrollableImageViewer(QWidget):
 
     def syncSlider(self, new_zoom):
         self.zoom_slider.setValue(new_zoom * 100)
+
+    def resetZoom(self, _):
+        self.syncSlider(1.0)
+        self.setViewZoom()
 
     def setImage(self, filename):
         self.scene.clear()
@@ -125,7 +134,7 @@ class ZoomableGraphicsView(QGraphicsView):
 
 
 def main():
-    from PySide6.QtWidgets import QApplication, QPushButton
+    from PySide6.QtWidgets import QApplication
     import sys
     app = QApplication([])
     filename = "/home/mark/data/pictures/glitch/input/banquet.jpg"
