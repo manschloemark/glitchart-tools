@@ -469,7 +469,14 @@ class PixelSortInput(QWidget):
                                 )
         return glitch_image
 
-class PixelSortWidget(QWidget):
+class GlitchWidget(QWidget):
+    """ Base class for widgets that execute glitches in GitchArtTools.
+    Any subclass of this must implement a method performGlitch(source_image:str) which returns a PIL Image
+    """
+    def performGlitch(self, source_image):
+        raise NotImplementedError
+
+class PixelSortWidget(GlitchWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._bandsort = False
@@ -549,7 +556,7 @@ class PixelSortWidget(QWidget):
         return glitch_image
 
 
-class SwizzleWidget(QWidget):
+class SwizzleWidget(GlitchWidget):
     """Widget to get input for swizzling, or channel-swapping.
         Params: swaps
     """
