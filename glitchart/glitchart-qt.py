@@ -533,14 +533,15 @@ class LineOffsetInput(QWidget):
         self.group_container = QFormLayout()
         groupby_label = QLabel("Lines:")
         self.line_function_cb = combobox_with_keys(groupby.group_generators.keys())
-        self.line_function_cb .currentTextChanged.connect(self.groupFunctionChanged)
-        self.line_function_cb.setCurrentText("Rows") # 'Linear' is a bad default
+        self.line_function_cb.currentTextChanged.connect(self.groupFunctionChanged)
         self.line_function_param_container = QVBoxLayout() # Because indexOf and insertRow are stupid
         self.line_function_params = NoParams()
         self.line_function_param_container.addWidget(self.line_function_params)
 
         self.group_container.addRow(groupby_label, self.line_function_cb)
         self.group_container.addRow(self.line_function_param_container)
+
+        self.line_function_cb.setCurrentText("Rows") # 'Linear' is a bad default
 
         self.offset_container = QFormLayout()
         offset_label = QLabel("Offset Function:")
