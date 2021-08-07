@@ -14,6 +14,7 @@ import pixelsort
 import groupby
 import pixelstats
 import swizzle
+import offset
 
 from imagewidget import *
 
@@ -95,7 +96,7 @@ def combobox_with_keys(keys):
 
 # Base class for widgets for different pixelsort region functions
 # I will implement a class for each pixelsort function that has unique arguments
-class PixelsortRegionArgs(QWidget):
+class GlitchFunctionArgs(QWidget):
     """
     Base class for widgets that take user input for pixelsort sort_function parameters.
     Each class in groupby.sort_functions should be mapped to a subclass of this, and calling
@@ -108,7 +109,7 @@ class PixelsortRegionArgs(QWidget):
     def get_kwargs(self):
         raise NotImplementedError
 
-class DiagonalArgs(PixelsortRegionArgs):
+class DiagonalArgs(GlitchFunctionArgs):
     """ Diagonal Group Parameters:
     Flip Slope: boolean
     """
@@ -127,7 +128,7 @@ class DiagonalArgs(PixelsortRegionArgs):
         return kwargs
 
 
-class PxShutterSortArgs(PixelsortRegionArgs):
+class PxShutterSortArgs(GlitchFunctionArgs):
     """ Pixel-length Shutter Sort parameters:
             Shutter Width/Height: integer
     """
@@ -154,7 +155,7 @@ class PxShutterSortArgs(PixelsortRegionArgs):
         kwargs["shutter_size"] = self.shutter_size_input.value()
         return kwargs
 
-class PxVariableShutterSortArgs(PixelsortRegionArgs):
+class PxVariableShutterSortArgs(GlitchFunctionArgs):
     """ Variable Pixel-length Shutter Sort parameters:
             Min Shutter Width/Height: integer
             Max Shutter Width/Height: integer
@@ -192,7 +193,7 @@ class PxVariableShutterSortArgs(PixelsortRegionArgs):
         return kwargs
 
 
-class PctShutterSortArgs(PixelsortRegionArgs):
+class PctShutterSortArgs(GlitchFunctionArgs):
     """ %-length Shutter Sort parameters:
             Shutter Width/Height: integer
     """
@@ -220,7 +221,7 @@ class PctShutterSortArgs(PixelsortRegionArgs):
         kwargs["shutter_size"] = self.shutter_size_input.value() / 100.0
         return kwargs
 
-class PctVariableShutterSortArgs(PixelsortRegionArgs):
+class PctVariableShutterSortArgs(GlitchFunctionArgs):
     """ Variable %-length Shutter Sort parameters:
             Min Shutter Width/Height: double
             Max Shutter Width/Height: double
@@ -260,7 +261,7 @@ class PctVariableShutterSortArgs(PixelsortRegionArgs):
         return kwargs
 
 
-class RandomSizeArgs(PixelsortRegionArgs):
+class RandomSizeArgs(GlitchFunctionArgs):
     """ Random length sort parameters:
             Min Width/Height: double
             Max Width/Height: double
@@ -300,7 +301,7 @@ class RandomSizeArgs(PixelsortRegionArgs):
         return kwargs
 
 
-class TracerSortArgs(PixelsortRegionArgs):
+class TracerSortArgs(GlitchFunctionArgs):
     """ Tracer Sort parameters:
             Tracer Length: integer
             Color Mods: Tuple(float, float, float) that is used to modify the RGB pixel values in the tracers. Helps them stand out.
@@ -347,7 +348,7 @@ class TracerSortArgs(PixelsortRegionArgs):
         kwargs["variance_threshold"] = self.variance_threshold_input.value() / 100.0
         return kwargs
 
-class NoParams(PixelsortRegionArgs):
+class NoParams(GlitchFunctionArgs):
     def get_kwargs(self):
         return {}
 
@@ -362,14 +363,58 @@ function_param_widgets = {
     "Tracers": TracerSortArgs, "Wobbly Tracers": TracerSortArgs
     }
 
-def rgb_combobox():
-    """ Creates a combobox with three choices - 'R', 'G', 'B' """
-    cb = QComboBox()
-    cb.addItem("R")
-    cb.addItem("G")
-    cb.addItem("B")
-    return cb
+# Widgets for offset.py
 
+class StaticOffsetArgs(GlitchFunctionArgs):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QFormLayout(self)
+        self.offset_spinbox = QSpinBox()
+        self.offset_spinbox.setSuffix("px")
+        self.offset_spinbox.setValue(32)
+        self.offset_spinbox.setMinimum(-5000)
+        self.offset_spinbox.setMaximum(5000)
+
+        self.layout.addRow("Offset:", self.offset_spinbox)
+
+    def get_kwargs(self):
+        kwargs = {}
+        kwargs["offset"] = self.offset_spinbox.value()
+        return kwargs
+
+class WaveOffsetArgs(GlitchFunctionArgs):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QFormLayout(self)
+
+        self.wave_height = QSpinBox()
+        self.wave_height.setSuffix("px")
+        self.wave_height.setValue(32)
+        self.wave_height.setMinimum(-5000)
+        self.wave_height.setMaximum(5000)
+
+        self.wave_length = QSpinBox()
+        self.wave_length.setValue(32)
+
+        self.layout.addRow("Wave Height:", self.wave_height)
+        self.layout.addRow("Wavelength Scale:", self.wave_length)
+
+    def get_kwargs(self):
+        kwargs = {}
+        kwargs["height"] = self.wave_height.value()
+        kwargs["inv_wavelength"] = 1.0 / self.wave_length.value()
+        return kwargs
+
+offset_param_widgets = {
+        "Line Number": NoParams, "Static": StaticOffsetArgs,
+        "Sine": WaveOffsetArgs, "Cosine": WaveOffsetArgs
+        }
 
 #--------------------------------------------------------------------------
 # Glitch Input Containers
@@ -468,6 +513,84 @@ class PixelSortInput(QWidget):
                                 reverse, color_mods, **kwargs
                                 )
         return glitch_image
+
+class LineOffsetInput(QWidget):
+    """ Class for user input of Line Offsets. Can be used for single channel and RGB images.
+    """
+
+    def __init__(self, name, rgb=True, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.rgb = rgb
+        self.initUI(name)
+
+    def initUI(self, name):
+        self.layout = QFormLayout(self)
+        self.layout.setAlignment(Qt.AlignCenter)
+
+        # NOTE I use QWidgets as placeholders so that QFormLayout indexOf() and insertRow() does not break
+        # when not in rgb mode.
+        title = QLabel(name)
+        self.group_container = QFormLayout()
+        groupby_label = QLabel("Lines:")
+        self.line_function_cb = combobox_with_keys(groupby.group_generators.keys())
+        self.line_function_cb .currentTextChanged.connect(self.groupFunctionChanged)
+        self.line_function_cb.setCurrentText("Rows") # 'Linear' is a bad default
+        self.line_function_param_container = QVBoxLayout() # Because indexOf and insertRow are stupid
+        self.line_function_params = NoParams()
+        self.line_function_param_container.addWidget(self.line_function_params)
+
+        self.group_container.addRow(groupby_label, self.line_function_cb)
+        self.group_container.addRow(self.line_function_param_container)
+
+        self.offset_container = QFormLayout()
+        offset_label = QLabel("Offset Function:")
+        self.offset_cb = combobox_with_keys(offset.offset_functions.keys())
+        self.offset_cb.currentTextChanged.connect(self.offsetFunctionChanged)
+        self.offset_param_container = QVBoxLayout()
+        self.offset_params = NoParams()
+        self.offset_param_container.addWidget(self.offset_params)
+
+        self.offset_container.addRow(offset_label, self.offset_cb)
+        self.offset_container.addRow(self.offset_param_container)
+
+        if self.rgb:
+            self.layout.addRow(title)
+        else:
+            self.do_not_glitch = QCheckBox("Ignore channel")
+            self.layout.addRow(title, self.do_not_glitch)
+        line_and_offset_container = QVBoxLayout()
+        line_and_offset_container.addLayout(self.group_container)
+        line_and_offset_container.addLayout(self.offset_container)
+        self.layout.addRow(line_and_offset_container)
+
+    def groupFunctionChanged(self, key):
+        self.line_function_params.setParent(None)
+        self.line_function_params = function_param_widgets[key]()
+        self.group_container.addWidget(self.line_function_params)
+
+    def offsetFunctionChanged(self, key):
+        self.offset_params.setParent(None)
+        self.offset_params = offset_param_widgets[key]()
+        self.offset_param_container.addWidget(self.offset_params)
+
+    def offsetImage(self, source_image):
+        if not self.rgb and self.do_not_glitch.isChecked():
+            return source_image
+        line_function = self.line_function_cb.currentText()
+        offset_function = self.offset_cb.currentText()
+
+        kwargs = dict()
+        kwargs.update(self.line_function_params.get_kwargs())
+        kwargs.update(self.offset_params.get_kwargs())
+
+        glitch_image = offset.offset(
+                                source_image,
+                                line_function,
+                                offset_function,
+                                **kwargs
+                                )
+        return glitch_image
+
 
 class GlitchWidget(QWidget):
     """ Base class for widgets that execute glitches in GitchArtTools.
@@ -571,10 +694,11 @@ class SwizzleWidget(GlitchWidget):
         green_label = QLabel("Green")
         blue_label = QLabel("Blue")
 
-        self.red_swap = rgb_combobox()
-        self.green_swap = rgb_combobox()
+        rgb = ("R", "G", "B")
+        self.red_swap = combobox_with_keys(rgb)
+        self.green_swap = combobox_with_keys(rgb)
         self.green_swap.setCurrentText("G")
-        self.blue_swap = rgb_combobox()
+        self.blue_swap = combobox_with_keys(rgb)
         self.blue_swap.setCurrentText("B")
 
         self.layout.addRow("Pixels", QLabel("Destination Channel"))
@@ -586,7 +710,84 @@ class SwizzleWidget(GlitchWidget):
         swaps = f'{self.red_swap.currentText()}{self.green_swap.currentText()}{self.blue_swap.currentText()}'
         return swizzle.swizzle(source_filename, swaps)
 
-glitch_widget_map = {"Pixelsort": PixelSortWidget, "Swizzle": SwizzleWidget}
+
+class LineOffsetWidget(GlitchWidget):
+    """ Widget that rotates/offsets lines in an image. """
+
+    def __init__(self,*args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._splitbands = False
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QVBoxLayout(self)
+
+        self.split_bands_checkbox = QCheckBox("Separate Bands")
+        self.split_bands_checkbox.stateChanged.connect(self.channelsChanged)
+
+        expanding_policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.input_container = QWidget()
+        self.input_container.setSizePolicy(expanding_policy)
+        self.input_layout = QVBoxLayout(self.input_container)
+        self.offset_input = []
+        self.loadInputWidgets()
+        self.scrollarea = QScrollArea()
+        self.scrollarea.setWidgetResizable(True)
+        self.scrollarea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scrollarea.setSizePolicy(expanding_policy)
+        self.scrollarea.setWidget(self.input_container)
+
+        self.layout.addWidget(self.split_bands_checkbox, Qt.AlignTop)#, 0, 0)
+        self.layout.addWidget(self.scrollarea)#, 1, 0)
+        self.layout.setStretch(0, 0)
+        self.layout.setStretch(1, 2)
+
+        self.setAutoFillBackground(True)
+        self.setBackgroundRole(QPalette.AlternateBase)
+
+
+    def channelsChanged(self, checked):
+        self._splitbands = checked
+        self.loadInputWidgets()
+
+    def loadInputWidgets(self):
+        for input_widget in self.offset_input:
+            input_widget.setParent(None)
+            input_widet = None
+        if self._splitbands:
+            # Bandsort
+            red_input = LineOffsetInput("Red", False)
+            red_input.setAutoFillBackground(True)
+            red_input.setBackgroundRole(QPalette.Light)
+            green_input = LineOffsetInput("Green", False)
+            green_input.setAutoFillBackground(True)
+            green_input.setBackgroundRole(QPalette.Midlight)
+            blue_input = LineOffsetInput("Blue", False)
+            blue_input.setAutoFillBackground(True)
+            blue_input.setBackgroundRole(QPalette.Light)
+            self.offset_input = [red_input, green_input, blue_input]
+        else:
+            # RGB Pixelsort
+            rgb_input = LineOffsetInput("3-Channel")
+            self.offset_input = [rgb_input]
+        for widget in self.offset_input:
+            widget.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
+            self.input_layout.addWidget(widget)
+
+    def performGlitch(self, source_filename):
+        source_image = Image.open(source_filename)
+        if self._splitbands:
+            bands = []
+            for band, band_input in zip(source_image.split(), self.offset_input):
+                band_glitch = band_input.offsetImage(band)
+                bands.append(band_glitch)
+            glitch_image = Image.merge("RGB", tuple(bands))
+        else:
+            glitch_image = self.offset_input[0].offsetImage(source_image)
+        return glitch_image
+
+
+glitch_widget_map = {"Pixelsort": PixelSortWidget, "Swizzle": SwizzleWidget, "Line Offsets": LineOffsetWidget}
 
 #--------------------------------------------------------------------------
 # Main Application
