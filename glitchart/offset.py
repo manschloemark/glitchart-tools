@@ -37,7 +37,12 @@ def offset(source, line_generator, offset_function, **kwargs):
     source_pixels = list(source.getdata())
     result = source.copy()
     result_pixels = []
-    for line_number, line in enumerate(line_generator(source_pixels, source.size)):
+    # Trying start and end to wave offsets don't wrap around the image
+    start, end = 0, len(source_pixels)
+    if offset_function in [sine, cosine]:
+        start = kwargs.get("height")
+        end = len(source_pixels) - start
+    for line_number, line in enumerate(line_generator(source_pixels[start : end], source.size)):
         offset = offset_function(line_number, **kwargs)
         result_pixels += line[offset : ] + line[ : offset]
 
