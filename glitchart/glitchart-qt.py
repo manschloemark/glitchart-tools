@@ -13,6 +13,7 @@ import util
 import pixelsort
 import groupby
 import pixelstats
+import swizzle
 
 from imagewidget import *
 
@@ -361,6 +362,15 @@ function_param_widgets = {
     "Tracers": TracerSortArgs, "Wobbly Tracers": TracerSortArgs
     }
 
+def rgb_combobox():
+    """ Creates a combobox with three choices - 'R', 'G', 'B' """
+    cb = QComboBox()
+    cb.addItem("R")
+    cb.addItem("G")
+    cb.addItem("B")
+    return cb
+
+
 #--------------------------------------------------------------------------
 # Glitch Input Containers
 #--------------------------------------------------------------------------
@@ -492,7 +502,6 @@ class PixelSortWidget(QWidget):
         self.layout.setStretch(0, 0)
         self.layout.setStretch(1, 2)
         self.layout.setStretch(2, 0)
-        self.layout.setAlignment
 
         self.setAutoFillBackground(True)
         self.setBackgroundRole(QPalette.AlternateBase)
@@ -539,6 +548,38 @@ class PixelSortWidget(QWidget):
             glitch_image = self.pixelsort_input[0].sortImage(source_image, color_mods)
         return glitch_image
 
+
+class SwizzleWidget(QWidget):
+    """Widget to get input for swizzling, or channel-swapping.
+        Params: swaps
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QFormLayout(self)
+
+        red_label = QLabel("Red")
+        green_label = QLabel("Green")
+        blue_label = QLabel("Blue")
+
+        self.red_swap = rgb_combobox()
+        self.green_swap = rgb_combobox()
+        self.green_swap.setCurrentText("G")
+        self.blue_swap = rgb_combobox()
+        self.blue_swap.setCurrentText("B")
+
+        self.layout.addRow("Pixels", QLabel("Destination Channel"))
+        self.layout.addRow(self.red_swap, red_label)
+        self.layout.addRow(self.green_swap, green_label)
+        self.layout.addRow(self.blue_swap, blue_label)
+
+    def performGlitch(self, source_filename):
+        swaps = f'{self.red_swap.currentText()}{self.green_swap.currentText()}{self.blue_swap.currentText()}'
+        return swizzle.swizzle(source_filename, swaps)
+
+glitch_widget_map = {"Pixelsort": PixelSortWidget, "Swizzle": SwizzleWidget}
 
 #--------------------------------------------------------------------------
 # Main Application
@@ -610,20 +651,28 @@ class GlitchArtTools(QWidget):
         self.settings_container = QWidget()
         self.settings_layout = QVBoxLayout(self.settings_container)
         self.settings_layout.setAlignment(Qt.AlignCenter)
+        glitch_choice_container = QHBoxLayout()
         glitch_settings_label = QLabel("Glitch Settings")
         glitch_settings_label.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
+        self.glitch_choice_cb = QComboBox()
+        for key in glitch_widget_map.keys():
+            self.glitch_choice_cb.addItem(key)
         # TODO add a control for the type of glitch to perform and make this more abstract.
-        self.glitch_widget = PixelSortWidget()
+        glitch_choice_container.addWidget(glitch_settings_label, Qt.AlignLeft)
+        glitch_choice_container.addWidget(self.glitch_choice_cb, Qt.AlignRight)
+        self.glitch_choice_cb.currentTextChanged.connect(self.setGlitchWidget)
+        self.glitch_widget = None
 
         self.glitch_it_button = QPushButton("Glitch It")
         self.glitch_it_button.setMaximumWidth(144)
         self.glitch_it_button.setEnabled(False)
         self.glitch_it_button.clicked.connect(self.performGlitch)
 
-        self.settings_layout.addWidget(glitch_settings_label, Qt.AlignTop | Qt.AlignLeft)
-        self.settings_layout.addWidget(self.glitch_widget)
+        self.settings_layout.addLayout(glitch_choice_container, Qt.AlignTop | Qt.AlignLeft)
+        self.setGlitchWidget(self.glitch_choice_cb.currentText())
         self.settings_layout.addWidget(self.glitch_it_button, Qt.AlignCenter)
         self.settings_container.setLayout(self.settings_layout)
+        self.settings_container.setMinimumWidth(320)
 
         self.settings_layout.setStretch(1, 1)
 
@@ -636,9 +685,17 @@ class GlitchArtTools(QWidget):
 
         self.main_layout.addWidget(self.settings_container)
         self.main_layout.addWidget(self.image_tabs)
-        self.main_layout.setStretch(0, 0)
-        self.main_layout.setStretch(1, 1)
+        self.main_layout.setStretch(0, 1)
+        self.main_layout.setStretch(1, 5)
         self.setLayout(self.main_layout)
+
+    def setGlitchWidget(self, key):
+        index = self.settings_layout.indexOf(self.glitch_it_button) - 1
+        if self.glitch_widget:
+            self.glitch_widget.setParent(None)
+        self.glitch_widget = glitch_widget_map[key]()
+        self.settings_layout.insertWidget(index, self.glitch_widget)
+
 
     def getMaxImageSize(self):
         return self.frameSize() / 2
