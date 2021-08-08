@@ -96,6 +96,47 @@ def sort_image(src, grouping_function, sort_function, key_function, reverse=Fals
     return glitch
 
 
+def sort_part(src, coords, grouping_function, sort_function, key_function, reverse=False, color_mods=(1, 1, 1), **kwargs):
+    """ Function that crops a part of an image, sorts it, and pastes it back onto the original.
+
+    :param src:        a Pillow Image object to be sorted OR a string indicating filepath to image.
+    :param coords:     a tuple containing coordinates (left, upper, right, lower) to make PIL.Image.crop()
+    :param group_func: a shaping function or generator that OR a string that maps to a generator.
+    :param sort_func:  a sorting function or generator OR a string that maps to a generator.
+    :param key_func:   a function that is used as the key in python's sorted() function for pixels (tuples).
+    :param reverse:    boolean used to reverse the sort order.
+    :param color_mods: tuple of numbers used to modify sorted pixels.
+    :param kwargs:     any keyword arguments that will be passed to the sort_func.
+
+    :returns:          a Pillow Image with the sorted pixels.
+    """
+
+    if isinstance(src, str):
+        src = Image.open(src)
+    if isinstance(grouping_function, str):
+        grouping_function = group_generators[grouping_function]
+    if isinstance(sort_function, str):
+        sort_function = sort_generators.get(sort_function, linear_sort)
+    if isinstance(key_function, str):
+        key_function = key_functions[key_function]
+    result = src.copy()
+    glitch = src.crop(coords)
+    pixels = sort_pixels(
+                        list(glitch.getdata()),
+                        glitch.size,
+                        grouping_function,
+                        sort_function,
+                        key_function,
+                        reverse,
+                        color_mods,
+                        **kwargs
+                        )
+
+    glitch.putdata(pixels)
+    result.paste(glitch, coords)
+    return result
+
+
 # This function is annoying to use, I'm only keeping it in case I want to
 # use it in code.
 # The GUI for bandsorting will not use this, it'll just use sort_pixels
@@ -132,8 +173,9 @@ def sort_bands(src, group_tuple, sort_tuple, reverse=(False, False, False), pixe
     return glitch
 
 def main():
-    glitch = sort_image(
+    glitch = sort_part(
         "/home/mark/data/pictures/glitch/input/hasui.jpg",
+        (200, 200, 400, 400),
         "Diagonals",
         "Linear",
         "Blue",
@@ -151,7 +193,7 @@ def main():
         color_mods=(1, 1, 1),
         flip_slope=True
     )
-    myshow(glitch2)
+    #myshow(glitch2)
     #myshow(glitch)
     #glitch = sort_bands(
     #        "/home/mark/data/pictures/glitch/input/banquet.jpg",
