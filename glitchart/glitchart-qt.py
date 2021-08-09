@@ -1,14 +1,17 @@
 """ glitchart-qt - Qt GUI for glitch art tools. Uses PySide6."""
 # Copyright (c) 2021 Mark Schloeman
 
+import sys
+import os
+
 from PySide6.QtWidgets import QMainWindow, QFileDialog, QApplication, QPushButton, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QCheckBox, QGridLayout, QSpinBox, QDoubleSpinBox, QSlider, QFormLayout, QSizePolicy, QSpacerItem, QTabWidget, QFrame, QScrollArea
 from PySide6.QtGui import QPixmap, QImage, QPalette, QIcon
 from PySide6 import QtCore
 from PySide6.QtCore import QSize, Qt, QPointF
+
 from PIL.ImageQt import ImageQt
 from PIL import Image
-import sys
-import os
+
 import util
 import pixelsort
 import groupby
@@ -491,7 +494,7 @@ class PixelSortInput(QWidget):
         self.sort_function_params = function_param_widgets[key]()
         self.sort_function_param_container.addWidget(self.sort_function_params)
 
-    def sortImage(self, source_image, color_mods):
+    def sortImage(self, source_image, color_mods, coords=None):
         if not self.rgb and self.do_not_sort.isChecked():
             return source_image
         group_function = self.group_function_cb.currentText()
@@ -505,7 +508,17 @@ class PixelSortInput(QWidget):
         kwargs.update(self.group_function_params.get_kwargs())
         kwargs.update(self.sort_function_params.get_kwargs())
 
-        glitch_image = pixelsort.sort_image(
+        if coords:
+            glitch_image = pixelsort.sort_part(
+                                source_image,
+                                coords,
+                                group_function,
+                                sort_function,
+                                sort_key_function,
+                                reverse, color_mods, **kwargs
+                                )
+        else:
+            glitch_image = pixelsort.sort_image(
                                 source_image,
                                 group_function,
                                 sort_function,
@@ -574,7 +587,7 @@ class LineOffsetInput(QWidget):
         self.offset_params = offset_param_widgets[key]()
         self.offset_param_container.addWidget(self.offset_params)
 
-    def offsetImage(self, source_image):
+    def offsetImage(self, source_image, coords=None):
         if not self.rgb and self.do_not_glitch.isChecked():
             return source_image
         line_function = self.line_function_cb.currentText()
@@ -588,6 +601,7 @@ class LineOffsetInput(QWidget):
                                 source_image,
                                 line_function,
                                 offset_function,
+                                coords=coords,
                                 **kwargs
                                 )
         return glitch_image
@@ -601,6 +615,7 @@ class GlitchWidget(QWidget):
         raise NotImplementedError
 
 class PixelSortWidget(GlitchWidget):
+    can_use_region = True
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._bandsort = False
@@ -666,17 +681,17 @@ class PixelSortWidget(GlitchWidget):
             widget.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
             self.input_layout.addWidget(widget)
 
-    def performGlitch(self, source_filename):
+    def performGlitch(self, source_filename, coords=None):
         source_image = Image.open(source_filename)
         color_mods = self.color_mod_input.getValues()
         if self._bandsort:
             bands = []
             for band, band_input, mod in zip(source_image.split(), self.pixelsort_input, color_mods):
-                band_glitch = band_input.sortImage(band, mod)
+                band_glitch = band_input.sortImage(band, mod, coords)
                 bands.append(band_glitch)
             glitch_image = Image.merge("RGB", tuple(bands))
         else:
-            glitch_image = self.pixelsort_input[0].sortImage(source_image, color_mods)
+            glitch_image = self.pixelsort_input[0].sortImage(source_image, color_mods, coords)
         return glitch_image
 
 
@@ -684,6 +699,7 @@ class SwizzleWidget(GlitchWidget):
     """Widget to get input for swizzling, or channel-swapping.
         Params: swaps
     """
+    can_use_region = True
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.initUI()
@@ -707,13 +723,14 @@ class SwizzleWidget(GlitchWidget):
         self.layout.addRow(self.green_swap, green_label)
         self.layout.addRow(self.blue_swap, blue_label)
 
-    def performGlitch(self, source_filename):
+    def performGlitch(self, source_filename, coords=None):
         swaps = f'{self.red_swap.currentText()}{self.green_swap.currentText()}{self.blue_swap.currentText()}'
-        return swizzle.swizzle(source_filename, swaps)
+        return swizzle.swizzle(source_filename, swaps, coords)
 
 
 class LineOffsetWidget(GlitchWidget):
     """ Widget that rotates/offsets lines in an image. """
+    can_use_region = True
 
     def __init__(self,*args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -775,16 +792,16 @@ class LineOffsetWidget(GlitchWidget):
             widget.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
             self.input_layout.addWidget(widget)
 
-    def performGlitch(self, source_filename):
+    def performGlitch(self, source_filename, coords=None):
         source_image = Image.open(source_filename)
         if self._splitbands:
             bands = []
             for band, band_input in zip(source_image.split(), self.offset_input):
-                band_glitch = band_input.offsetImage(band)
+                band_glitch = band_input.offsetImage(band, coords)
                 bands.append(band_glitch)
             glitch_image = Image.merge("RGB", tuple(bands))
         else:
-            glitch_image = self.offset_input[0].offsetImage(source_image)
+            glitch_image = self.offset_input[0].offsetImage(source_image, coords)
         return glitch_image
 
 
@@ -825,14 +842,14 @@ class GlitchArtTools(QWidget):
         self.image_source_input.editingFinished.connect(self.setImageFromLineInput)
         file_browser_button = QPushButton("Browse...")
         file_browser_button.clicked.connect(self.openFileSelect)
-        self.source_image_view = ScrollableImageViewer()
-        self.source_image_view.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
+        self.source_image_viewer = ScrollableImageViewer()
+        self.source_image_viewer.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
         image_select_hbox.addWidget(file_select_label)
         image_select_hbox.addWidget(self.image_source_input)
         image_select_hbox.addWidget(file_browser_button)
 
         image_input_layout.addLayout(image_select_hbox)
-        image_input_layout.addWidget(self.source_image_view)
+        image_input_layout.addWidget(self.source_image_viewer)
 
         self.image_output_tab = QWidget()
         image_output_layout = QVBoxLayout(self.image_output_tab)
@@ -848,11 +865,11 @@ class GlitchArtTools(QWidget):
         glitch_file_hbox.addWidget(self.enlarge_glitch_image)
         glitch_file_hbox.addWidget(self.swap_glitch_button)
         glitch_file_hbox.addWidget(self.save_glitch_copy)
-        self.glitch_image_view = ScrollableImageViewer()
-        self.glitch_image_view.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
+        self.glitch_image_viewer = ScrollableImageViewer()
+        self.glitch_image_viewer.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
 
         image_output_layout.addLayout(glitch_file_hbox)
-        image_output_layout.addWidget(self.glitch_image_view)
+        image_output_layout.addWidget(self.glitch_image_viewer)
 
         self.image_tabs.addTab(self.image_input_tab, "Input")
         self.image_tabs.addTab(self.image_output_tab, "Output")
@@ -904,7 +921,7 @@ class GlitchArtTools(QWidget):
             self.glitch_widget.setParent(None)
         self.glitch_widget = glitch_widget_map[key]()
         self.settings_layout.insertWidget(index, self.glitch_widget)
-
+        self.source_image_viewer.setSelectionEnabled(self.glitch_widget.can_use_region)
 
     def getMaxImageSize(self):
         return self.frameSize() / 2
@@ -938,7 +955,7 @@ class GlitchArtTools(QWidget):
     def setSourceImage(self, filename):
         self.source_filename = filename
         self.image_source_input.setText(self.source_filename)
-        self.source_image_view.setImage(self.source_filename)
+        self.source_image_viewer.setImage(self.source_filename)
         self.glitch_it_button.setEnabled(True)
 
     # NOTE
@@ -949,7 +966,7 @@ class GlitchArtTools(QWidget):
     def setGlitchImage(self, pil_image):
         self.glitch_qimage = ImageQt(pil_image)
         self.glitch_filename = pil_image.filename
-        self.glitch_image_view.setImage(self.glitch_filename)
+        self.glitch_image_viewer.setImage(self.glitch_filename)
         self.swap_glitch_button.setEnabled(True)
         self.save_glitch_copy.setEnabled(True)
 
@@ -970,7 +987,12 @@ class GlitchArtTools(QWidget):
         if self.glitch_filename and not (self.glitch_filename == self.source_filename):
             # NOTE : improve file deletion
             self.deleteImage(self.glitch_filename)
-        glitch_image = self.glitch_widget.performGlitch(self.source_filename)
+        coords = None
+        coords_rect = self.source_image_viewer.rb_rect
+        if coords_rect:
+            coords = (coords_rect.x(), coords_rect.y(), coords_rect.x() + coords_rect.width(), coords_rect.y() + coords_rect.height())
+
+        glitch_image = self.glitch_widget.performGlitch(self.source_filename, coords)
         util.make_temp_file(glitch_image, os.path.join(self.default_path, "temp"))
         self.image_tabs.setCurrentWidget(self.image_output_tab)
         self.setGlitchImage(glitch_image)

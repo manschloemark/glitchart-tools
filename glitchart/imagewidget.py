@@ -2,16 +2,20 @@
 # Copyright (c) 2021 Mark Schloeman
 
 from PySide6.QtWidgets import QLabel, QWidget, QVBoxLayout, QHBoxLayout, QSlider, QGraphicsScene, QGraphicsView, QSizePolicy, QPushButton
-from PySide6.QtGui import QPixmap
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap, QPainter, QBrush, QPen
+from PySide6.QtCore import Qt, Signal, QRectF, QPointF, QRect, QPoint
 
 
+def clamp(x, start, width):
+    return min(max(x, start), start + width)
 
 class ScrollableImageViewer(QWidget):
     def __init__(self, filename=None, metadata=None):
         super().__init__()
         self.loadUI()
         self.scene_pixmap = None
+        self.rb_rect = None
+        self.rb_graphicsitem = None
         if filename:
             self.setImage(filename)
         else:
@@ -27,6 +31,7 @@ class ScrollableImageViewer(QWidget):
         self.view = ZoomableGraphicsView(1.0, min_zoom, max_zoom, self.scene)
         self.view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.view.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
+        self.view.rubberBandChanged.connect(self.selectionChanged)
 
         self.info_bar = QHBoxLayout()
         self.image_info_label = QLabel()
@@ -70,6 +75,7 @@ class ScrollableImageViewer(QWidget):
 
     def setImage(self, filename):
         self.scene.clear()
+        self.rb_graphicsitem = None
         self.source_pixmap = QPixmap(filename) # I don't know why I have two pixmaps. It's from a long time ago so...
         self.scene_pixmap = self.source_pixmap
         self.scene.setSceneRect(self.scene_pixmap.rect()) # Prevents the scroll area from growing after each image
@@ -87,6 +93,50 @@ class ScrollableImageViewer(QWidget):
         self.setViewZoom()
         self.view.fitInView(self.scene_pixmap.rect(), Qt.KeepAspectRatio)
         self.view.centerOn(self.scene.items()[0])
+
+    def setSelectionEnabled(self, enabled):
+        if enabled:
+            self.view.setDragMode(QGraphicsView.RubberBandDrag)
+        else:
+            self.view.setDragMode(QGraphicsView.NoDrag)
+            self.rb_rect = None
+            if self.rb_graphicsitem:
+                self.scene.removeItem(self.rb_graphicsitem)
+
+    def drawSelectionBox(self):
+        if self.rb_rect is None:
+            return
+        if self.rb_graphicsitem:
+            self.scene.removeItem(self.rb_graphicsitem)
+        selection_rect = QRectF(self.rb_rect)
+        pen = QPen(Qt.DashLine)
+        brush = QBrush(Qt.red, Qt.Dense4Pattern)
+        self.rb_graphicsitem = self.scene.addRect(selection_rect, pen, brush)
+
+    def selectionChanged(self, rb_rect, start, end):
+        if self.scene_pixmap is None:
+            return
+        # I really don't want false-positives here
+        rect_null = rb_rect.x() == 0.0 and rb_rect.y() == 0.0 and rb_rect.width() == 0.0 and rb_rect.height() == 0.0
+        start_null = start.x() == 0.0 and start.y() == 0.0
+        end_null = end.x() == 0.0 and end.y() == 0.0
+        if rect_null and start_null and end_null:
+            # Rubber Band stopped moving
+            if self.selection_moving:
+                self.drawSelectionBox()
+            self.selection_moving = False
+        else:
+            self.selection_moving = True
+            pixmap_rect = self.scene_pixmap.rect()
+            top_left = QPoint(clamp(int(min(start.x(), end.x())),
+                                    pixmap_rect.x(), pixmap_rect.width()),
+                              clamp(int(min(start.y(), end.y())),
+                                    pixmap_rect.y(), pixmap_rect.height()))
+            bottom_right = QPoint(clamp(int(max(start.x(), end.x())),
+                                        pixmap_rect.x(), pixmap_rect.width()),
+                                  clamp(int(max(start.y(), end.y())),
+                                        pixmap_rect.y(), pixmap_rect.height()))
+            self.rb_rect = QRect(top_left, bottom_right)
 
     def resizeEvent(self, event):
         # When the widget changes size I want to update the size of the image.

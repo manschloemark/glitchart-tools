@@ -58,7 +58,7 @@ def sort_pixels(pixels, size, group_func, sort_func, key_func, reverse=False, co
         sorted_pixels = group_transpose_generators[group_func](sorted_pixels, size, **kwargs)
     return sorted_pixels
 
-def sort_image(src, grouping_function, sort_function, key_function, reverse=False, color_mods=(1, 1, 1), **kwargs):
+def sort_image(src, grouping_function, sort_function, key_function, reverse=False, color_mods=(1, 1, 1), coords=None, **kwargs):
     """ Function that sorts the pixels in an image.
 
     :param src:        a Pillow Image object to be sorted OR a string indicating filepath to image.
@@ -80,10 +80,14 @@ def sort_image(src, grouping_function, sort_function, key_function, reverse=Fals
         sort_function = sort_generators.get(sort_function, linear_sort)
     if isinstance(key_function, str):
         key_function = key_functions[key_function]
-    glitch = src.copy()
+    result = src.copy()
+    if coords:
+        glitch = src.crop(coords)
+    else:
+        glitch = result
     pixels = sort_pixels(
                         list(glitch.getdata()),
-                        src.size,
+                        glitch.size,
                         grouping_function,
                         sort_function,
                         key_function,
@@ -93,7 +97,9 @@ def sort_image(src, grouping_function, sort_function, key_function, reverse=Fals
                         )
 
     glitch.putdata(pixels)
-    return glitch
+    if coords:
+        result.paste(glitch, coords)
+    return result
 
 
 def sort_part(src, coords, grouping_function, sort_function, key_function, reverse=False, color_mods=(1, 1, 1), **kwargs):
@@ -173,15 +179,14 @@ def sort_bands(src, group_tuple, sort_tuple, reverse=(False, False, False), pixe
     return glitch
 
 def main():
-    glitch = sort_part(
+    glitch = sort_image(
         "/home/mark/data/pictures/glitch/input/hasui.jpg",
-        (200, 200, 400, 400),
         "Diagonals",
         "Linear",
         "Blue",
         False,
         color_mods=(1, 1, 1),
-        flip_slope=False
+        coords=(200, 200, 400, 400)
     )
     myshow(glitch)
     glitch2 = sort_image(
@@ -191,9 +196,8 @@ def main():
         "Blue",
         False,
         color_mods=(1, 1, 1),
-        flip_slope=True
     )
-    #myshow(glitch2)
+    myshow(glitch2)
     #myshow(glitch)
     #glitch = sort_bands(
     #        "/home/mark/data/pictures/glitch/input/banquet.jpg",

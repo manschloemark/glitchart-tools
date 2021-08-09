@@ -21,7 +21,7 @@ def cosine(line_number, height, inv_wavelength, **kwargs):
     return int(height * math.cos(line_number * inv_wavelength * math.pi / 2))
 
 
-def offset(source, line_generator, offset_function, **kwargs):
+def offset(source, line_generator, offset_function, coords=None, **kwargs):
     """ Run an image through a line generator (from groupby.py) and rotate the lines
 
     :param source: a string containing path to an image or a PIL Image object
@@ -35,19 +35,26 @@ def offset(source, line_generator, offset_function, **kwargs):
         line_generator = groupby.group_generators.get(line_generator)
     if isinstance(offset_function, str):
         offset_function = offset_functions.get(offset_function)
-    source_pixels = list(source.getdata())
     result = source.copy()
+    if coords:
+        glitch = result.crop(coords)
+        pixels = list(glitch.getdata())
+    else:
+        glitch = result
+        pixels = list(glitch.getdata())
     result_pixels = []
     # Trying start and end to wave offsets don't wrap around the image
-    for line_number, line in enumerate(line_generator(source_pixels, source.size)):
+    for line_number, line in enumerate(line_generator(pixels, glitch.size)):
         offset = offset_function(line_number, **kwargs)
         result_pixels += line[offset :] + line[: offset]
 
     transposer = groupby.group_transpose_generators.get(line_generator)
     if transposer:
-        result_pixels = transposer(result_pixels, source.size, **kwargs)
+        result_pixels = transposer(result_pixels, glitch.size, **kwargs)
 
-    result.putdata(result_pixels)
+    glitch.putdata(result_pixels)
+    if coords:
+        result.paste(glitch, coords)
     return result
 
 offset_functions = {"Line Number": line_number, "Static": static_number, "Sine": sine, "Cosine": cosine}
@@ -55,7 +62,7 @@ offset_functions = {"Line Number": line_number, "Static": static_number, "Sine":
 
 def main():
     src = Image.open("/home/mark/data/pictures/glitch/input/banquet.jpg")
-    offset(src, groupby.rows, sine, height=48, inv_wavelength=math.pi / 200).show()
+    offset(src, groupby.rows, sine, height=48, inv_wavelength=math.pi / 200, coords=(100, 100, 300, 300)).show()
     src2 = Image.open("/home/mark/data/pictures/glitch/input/banquet.jpg")
     offset(src2, groupby.rows, static_number, offset=69).show()
     src3 = Image.open("/home/mark/data/pictures/glitch/input/banquet.jpg")
