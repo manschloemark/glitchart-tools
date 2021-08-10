@@ -79,7 +79,8 @@ class ScrollableImageViewer(QWidget):
     def setImage(self, filename, clear_selection=True):
         self.scene.clear()
         if clear_selection:
-            self.deleteSelection()
+            self.rb_rect = None
+            self.rb_graphicsitem = None
         self.source_pixmap = QPixmap(filename) # I don't know why I have two pixmaps... it's old code.
         self.scene_pixmap = self.source_pixmap
         self.scene.setSceneRect(self.scene_pixmap.rect())
