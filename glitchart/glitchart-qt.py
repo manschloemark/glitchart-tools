@@ -952,10 +952,10 @@ class GlitchArtTools(QWidget):
         if filename[0]:
             self.saveGlitchCopy(filename[0])
 
-    def setSourceImage(self, filename):
+    def setSourceImage(self, filename, clear_region=True):
         self.source_filename = filename
         self.image_source_input.setText(self.source_filename)
-        self.source_image_viewer.setImage(self.source_filename)
+        self.source_image_viewer.setImage(self.source_filename, clear_region)
         self.glitch_it_button.setEnabled(True)
 
     # NOTE
@@ -972,7 +972,7 @@ class GlitchArtTools(QWidget):
 
     def setGlitchAsSource(self):
         self.image_tabs.setCurrentWidget(self.image_input_tab)
-        self.setSourceImage(self.glitch_filename)
+        self.setSourceImage(self.glitch_filename, False)
 
     def saveGlitchCopy(self, file_destination):
         # NOTE should I swap the temp glitch filename with the permanent filename after this?
