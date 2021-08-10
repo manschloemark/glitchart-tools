@@ -403,10 +403,13 @@ class WaveOffsetArgs(GlitchFunctionArgs):
         self.wave_height.setMaximum(5000)
 
         self.wave_length = QSpinBox()
+        self.wave_length.setSuffix("px")
         self.wave_length.setValue(32)
+        self.wave_length.setMinimum(-5000)
+        self.wave_length.setMaximum(5000)
 
-        self.layout.addRow("Wave Height:", self.wave_height)
-        self.layout.addRow("Wavelength Scale:", self.wave_length)
+        self.layout.addRow("Height:", self.wave_height)
+        self.layout.addRow("Wavelength:", self.wave_length)
 
     def get_kwargs(self):
         kwargs = {}
