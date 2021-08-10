@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt, Signal, QRectF, QPointF, QRect, QPoint
 
 
 def clamp(x, start, width):
-    return min(max(x, start), start + width)
+    return int(min(max(x, start), start + width))
 
 class ScrollableImageViewer(QWidget):
     def __init__(self, filename=None, metadata=None):
@@ -24,6 +24,7 @@ class ScrollableImageViewer(QWidget):
     def loadUI(self):
         self.layout = QVBoxLayout(self)
 
+
         min_zoom = 0.1
         max_zoom = 8.0
 
@@ -32,6 +33,8 @@ class ScrollableImageViewer(QWidget):
         self.view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.view.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
         self.view.rubberBandChanged.connect(self.selectionChanged)
+        self.rb_pen = QPen(Qt.DashLine)
+        self.rb_brush = QBrush(Qt.red, Qt.Dense4Pattern)
 
         self.info_bar = QHBoxLayout()
         self.image_info_label = QLabel()
@@ -73,13 +76,16 @@ class ScrollableImageViewer(QWidget):
         self.syncSlider(1.0)
         self.setViewZoom()
 
-    def setImage(self, filename):
+    def setImage(self, filename, clear_selection=True):
         self.scene.clear()
-        self.rb_graphicsitem = None
-        self.source_pixmap = QPixmap(filename) # I don't know why I have two pixmaps. It's from a long time ago so...
+        if clear_selection:
+            self.deleteSelection()
+        self.source_pixmap = QPixmap(filename) # I don't know why I have two pixmaps... it's old code.
         self.scene_pixmap = self.source_pixmap
-        self.scene.setSceneRect(self.scene_pixmap.rect()) # Prevents the scroll area from growing after each image
+        self.scene.setSceneRect(self.scene_pixmap.rect())
         self.scene.addPixmap(self.scene_pixmap)
+        if self.rb_rect:
+            self.rb_graphicsitem = self.scene.addRect(self.rb_rect, self.rb_pen, self.rb_brush)
 
         image_size = self.source_pixmap.size()
         self.image_info_label.setText(f'{filename} | {image_size.width()}x{image_size.height()}')
@@ -94,49 +100,57 @@ class ScrollableImageViewer(QWidget):
         self.view.fitInView(self.scene_pixmap.rect(), Qt.KeepAspectRatio)
         self.view.centerOn(self.scene.items()[0])
 
+    def deleteSelection(self):
+        self.rb_rect = None
+        if self.rb_graphicsitem:
+            self.scene.removeItem(self.rb_graphicsitem)
+            self.rb_graphicsitem = None
+
     def setSelectionEnabled(self, enabled):
         if enabled:
             self.view.setDragMode(QGraphicsView.RubberBandDrag)
         else:
             self.view.setDragMode(QGraphicsView.NoDrag)
-            self.rb_rect = None
-            if self.rb_graphicsitem:
-                self.scene.removeItem(self.rb_graphicsitem)
+            self.deleteSelection()
 
     def drawSelectionBox(self):
         if self.rb_rect is None:
-            return
+            return None
         if self.rb_graphicsitem:
             self.scene.removeItem(self.rb_graphicsitem)
         selection_rect = QRectF(self.rb_rect)
-        pen = QPen(Qt.DashLine)
-        brush = QBrush(Qt.red, Qt.Dense4Pattern)
-        self.rb_graphicsitem = self.scene.addRect(selection_rect, pen, brush)
+        self.rb_graphicsitem = self.scene.addRect(selection_rect, self.rb_pen, self.rb_brush)
 
+    # NOTE: When you let go of the mouse, like when you finish your selection,
+    #       it still triggers view.rubberBandChanged but with rect, start, and end containing 0s.
+    #       So interpret those values as meaning the rubber band will no longer change
+    #       and use the previous values as the final rect.
     def selectionChanged(self, rb_rect, start, end):
         if self.scene_pixmap is None:
-            return
-        # I really don't want false-positives here
-        rect_null = rb_rect.x() == 0.0 and rb_rect.y() == 0.0 and rb_rect.width() == 0.0 and rb_rect.height() == 0.0
+            return None
+        # I really don't want false-positives here, though I probably don't need to check everything
+        rect_null = rb_rect.x() == 0.0 \
+                    and rb_rect.y() == 0.0 \
+                    and rb_rect.width() == 0.0 \
+                    and rb_rect.height() == 0.0
+
         start_null = start.x() == 0.0 and start.y() == 0.0
         end_null = end.x() == 0.0 and end.y() == 0.0
         if rect_null and start_null and end_null:
-            # Rubber Band stopped moving
             if self.selection_moving:
                 self.drawSelectionBox()
             self.selection_moving = False
         else:
             self.selection_moving = True
             pixmap_rect = self.scene_pixmap.rect()
-            top_left = QPoint(clamp(int(min(start.x(), end.x())),
-                                    pixmap_rect.x(), pixmap_rect.width()),
-                              clamp(int(min(start.y(), end.y())),
-                                    pixmap_rect.y(), pixmap_rect.height()))
-            bottom_right = QPoint(clamp(int(max(start.x(), end.x())),
-                                        pixmap_rect.x(), pixmap_rect.width()),
-                                  clamp(int(max(start.y(), end.y())),
-                                        pixmap_rect.y(), pixmap_rect.height()))
-            self.rb_rect = QRect(top_left, bottom_right)
+            # If the rubber band was made from right to left, start will be the right coords and end will
+            # be left. In order to make these coords compatible with PIL you need to find which is which.
+            left = int(clamp(min(start.x(), end.x()), pixmap_rect.x(), pixmap_rect.width()))
+            top = int(clamp(min(start.y(), end.y()), pixmap_rect.y(), pixmap_rect.height()))
+            right = int(clamp(max(start.x(), end.x()), pixmap_rect.x(), pixmap_rect.width()))
+            bottom = int(clamp(max(start.y(), end.y()), pixmap_rect.y(), pixmap_rect.height()))
+
+            self.rb_rect = QRect(QPoint(left, top), QPoint(right, bottom))
 
     def resizeEvent(self, event):
         # When the widget changes size I want to update the size of the image.
@@ -145,6 +159,12 @@ class ScrollableImageViewer(QWidget):
         self.resetView()
         self.syncSlider(zoom)
         self.setViewZoom()
+
+    def keyReleaseEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.deleteSelection()
+        else:
+            super().keyReleaseEvent(event)
 
 
 
