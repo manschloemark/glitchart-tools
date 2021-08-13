@@ -567,8 +567,12 @@ class LineOffsetInput(QWidget):
         self.offset_params = NoParams()
         self.offset_param_container.addWidget(self.offset_params)
 
+
         self.offset_container.addRow(offset_label, self.offset_cb)
         self.offset_container.addRow(self.offset_param_container)
+
+        self.wrap_checkbox = QCheckBox("Wrap Around Edges")
+        self.wrap_checkbox.setChecked(self.rgb)
 
         if self.rgb:
             self.layout.addRow(title)
@@ -579,6 +583,7 @@ class LineOffsetInput(QWidget):
         line_and_offset_container.addLayout(self.group_container)
         line_and_offset_container.addLayout(self.offset_container)
         self.layout.addRow(line_and_offset_container)
+        self.layout.addRow(self.wrap_checkbox)
 
     def groupFunctionChanged(self, key):
         self.line_function_params.setParent(None)
@@ -605,6 +610,7 @@ class LineOffsetInput(QWidget):
                                 line_function,
                                 offset_function,
                                 coords=coords,
+                                wrap=self.wrap_checkbox.isChecked(),
                                 **kwargs
                                 )
         return glitch_image
