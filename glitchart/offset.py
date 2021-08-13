@@ -21,7 +21,7 @@ def cosine(line_number, height, inv_wavelength, **kwargs):
     return int(height * math.cos(line_number * inv_wavelength * math.pi / 2))
 
 
-def offset(source, line_generator, offset_function, coords=None, **kwargs):
+def offset(source, line_generator, offset_function, coords=None, wrap=True, **kwargs):
     """ Run an image through a line generator (from groupby.py) and rotate the lines
 
     :param source: a string containing path to an image or a PIL Image object
@@ -44,9 +44,27 @@ def offset(source, line_generator, offset_function, coords=None, **kwargs):
         pixels = list(glitch.getdata())
     result_pixels = []
     # Trying start and end to wave offsets don't wrap around the image
-    for line_number, line in enumerate(line_generator(pixels, glitch.size)):
-        offset = offset_function(line_number, **kwargs)
-        result_pixels += line[offset :] + line[: offset]
+    if wrap:
+        for line_number, line in enumerate(line_generator(pixels, glitch.size)):
+            offset = offset_function(line_number, **kwargs)
+            if offset < 0:
+                offset = abs(offset) % len(line)
+                result_pixels += line[offset :] + line[: offset]
+            else:
+                offset %= len(line)
+                pivot = len(line)  - 1 - offset
+                result_pixels += line[pivot :] + line[: pivot]
+    else:
+        for line_number, line in enumerate(line_generator(pixels, glitch.size)):
+            offset = offset_function(line_number, **kwargs)
+            if offset < 0:
+                offset = abs(offset) % len(line)
+                pixels = line[offset :] + line[len(line) - offset : ]
+            else:
+                offset %= len(line)
+                pivot = len(line) - offset
+                pixels = line[: offset] + line[: pivot]
+            result_pixels += pixels
 
     transposer = groupby.group_transpose_generators.get(line_generator)
     if transposer:
