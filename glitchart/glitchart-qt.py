@@ -616,6 +616,101 @@ class LineOffsetInput(QWidget):
         return glitch_image
 
 
+class LineOffsetAuraInput(QWidget):
+    """ Class for user input of Line Offsets Auras. Can be used for single channel and RGB images.
+    """
+
+    def __init__(self, name, rgb=True, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.rgb = rgb
+        self.initUI(name)
+
+    def initUI(self, name):
+        self.layout = QFormLayout(self)
+        self.layout.setAlignment(Qt.AlignCenter)
+
+        # NOTE I use QWidgets as placeholders so that QFormLayout indexOf() and insertRow() does not break
+        # when not in rgb mode.
+        title = QLabel(name)
+        self.group_container = QFormLayout()
+        groupby_label = QLabel("Lines:")
+        self.line_function_cb = combobox_with_keys(groupby.group_generators.keys())
+        self.line_function_cb.currentTextChanged.connect(self.groupFunctionChanged)
+        self.line_function_param_container = QVBoxLayout() # Because indexOf and insertRow are stupid
+        self.line_function_params = NoParams()
+        self.line_function_param_container.addWidget(self.line_function_params)
+
+        self.group_container.addRow(groupby_label, self.line_function_cb)
+        self.group_container.addRow(self.line_function_param_container)
+
+        self.line_function_cb.setCurrentText("Rows") # 'Linear' is a bad default
+
+        self.offset_container = QFormLayout()
+        offset_label = QLabel("Offset Function:")
+        self.offset_cb = combobox_with_keys(offset.offset_functions.keys())
+        self.offset_cb.currentTextChanged.connect(self.offsetFunctionChanged)
+        self.offset_param_container = QVBoxLayout()
+        self.offset_params = NoParams()
+        self.offset_param_container.addWidget(self.offset_params)
+
+
+        self.offset_container.addRow(offset_label, self.offset_cb)
+        self.offset_container.addRow(self.offset_param_container)
+
+        strength_label = QLabel("Strength")
+        self.aura_strength = QSlider()
+        self.aura_strength.setOrientation(Qt.Horizontal)
+        self.aura_strength.setMinimum(0)
+        self.aura_strength.setMaximum(100)
+        self.aura_strength.setValue(75)
+
+        self.wrap_checkbox = QCheckBox("Wrap Around Edges")
+        self.wrap_checkbox.setChecked(self.rgb)
+
+        if self.rgb:
+            self.layout.addRow(title)
+        else:
+            self.do_not_glitch = QCheckBox("Ignore channel")
+            self.layout.addRow(title, self.do_not_glitch)
+        line_and_offset_container = QVBoxLayout()
+        line_and_offset_container.addLayout(self.group_container)
+        line_and_offset_container.addLayout(self.offset_container)
+        self.layout.addRow(line_and_offset_container)
+        self.layout.addRow(strength_label, self.aura_strength)
+        self.layout.addRow(self.wrap_checkbox)
+
+    def groupFunctionChanged(self, key):
+        self.line_function_params.setParent(None)
+        self.line_function_params = function_param_widgets[key]()
+        self.group_container.addWidget(self.line_function_params)
+
+    def offsetFunctionChanged(self, key):
+        self.offset_params.setParent(None)
+        self.offset_params = offset_param_widgets[key]()
+        self.offset_param_container.addWidget(self.offset_params)
+
+    def offsetImage(self, source_image, coords=None):
+        if not self.rgb and self.do_not_glitch.isChecked():
+            return source_image
+        line_function = self.line_function_cb.currentText()
+        offset_function = self.offset_cb.currentText()
+        aura_strength = self.aura_strength.value() / 100.0
+
+        kwargs = dict()
+        kwargs.update(self.line_function_params.get_kwargs())
+        kwargs.update(self.offset_params.get_kwargs())
+
+        glitch_image = offset.offset_aura(
+                                source_image,
+                                line_function,
+                                offset_function,
+                                coords=coords,
+                                wrap=self.wrap_checkbox.isChecked(),
+                                alpha=aura_strength,
+                                **kwargs
+                                )
+        return glitch_image
+
 class GlitchWidget(QWidget):
     """ Base class for widgets that execute glitches in GitchArtTools.
     Any subclass of this must implement a method performGlitch(source_image:str) which returns a PIL Image
@@ -814,7 +909,83 @@ class LineOffsetWidget(GlitchWidget):
         return glitch_image
 
 
-glitch_widget_map = {"Pixelsort": PixelSortWidget, "Swizzle": SwizzleWidget, "Line Offsets": LineOffsetWidget}
+class LineOffsetAuraWidget(GlitchWidget):
+    """ Widget adds offset 'auras' to an image. """
+    can_use_region = True
+
+    def __init__(self,*args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._splitbands = False
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QVBoxLayout(self)
+
+        self.split_bands_checkbox = QCheckBox("Separate Bands")
+        self.split_bands_checkbox.stateChanged.connect(self.channelsChanged)
+
+        expanding_policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.input_container = QWidget()
+        self.input_container.setSizePolicy(expanding_policy)
+        self.input_layout = QVBoxLayout(self.input_container)
+        self.offset_input = []
+        self.loadInputWidgets()
+        self.scrollarea = QScrollArea()
+        self.scrollarea.setWidgetResizable(True)
+        self.scrollarea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scrollarea.setSizePolicy(expanding_policy)
+        self.scrollarea.setWidget(self.input_container)
+
+        self.layout.addWidget(self.split_bands_checkbox, Qt.AlignTop)#, 0, 0)
+        self.layout.addWidget(self.scrollarea)#, 1, 0)
+        self.layout.setStretch(0, 0)
+        self.layout.setStretch(1, 2)
+
+        self.setAutoFillBackground(True)
+        self.setBackgroundRole(QPalette.AlternateBase)
+
+
+    def channelsChanged(self, checked):
+        self._splitbands = checked
+        self.loadInputWidgets()
+
+    def loadInputWidgets(self):
+        for input_widget in self.offset_input:
+            input_widget.setParent(None)
+            input_widet = None
+        if self._splitbands:
+            # Bandsort
+            red_input = LineOffsetAuraInput("Red", False)
+            red_input.setAutoFillBackground(True)
+            red_input.setBackgroundRole(QPalette.Light)
+            green_input = LineOffsetAuraInput("Green", False)
+            green_input.setAutoFillBackground(True)
+            green_input.setBackgroundRole(QPalette.Midlight)
+            blue_input = LineOffsetAuraInput("Blue", False)
+            blue_input.setAutoFillBackground(True)
+            blue_input.setBackgroundRole(QPalette.Light)
+            self.offset_input = [red_input, green_input, blue_input]
+        else:
+            # RGB Pixelsort
+            rgb_input = LineOffsetAuraInput("3-Channel")
+            self.offset_input = [rgb_input]
+        for widget in self.offset_input:
+            widget.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
+            self.input_layout.addWidget(widget)
+
+    def performGlitch(self, source_filename, coords=None):
+        source_image = Image.open(source_filename)
+        if self._splitbands:
+            bands = []
+            for band, band_input in zip(source_image.split(), self.offset_input):
+                band_glitch = band_input.offsetImage(band, coords)
+                bands.append(band_glitch)
+            glitch_image = Image.merge("RGB", tuple(bands))
+        else:
+            glitch_image = self.offset_input[0].offsetImage(source_image, coords)
+        return glitch_image
+
+glitch_widget_map = {"Pixelsort": PixelSortWidget, "Swizzle": SwizzleWidget, "Line Offsets": LineOffsetWidget, "Offset Auras": LineOffsetAuraWidget}
 
 #--------------------------------------------------------------------------
 # Main Application
