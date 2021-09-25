@@ -22,8 +22,7 @@ Same as regular line offsets but the rotated image is overlayed on top of the or
 
 ### Swizzling / Channel Swapping
 ![Turning an RGB image into a BGR](./examples/bgr.jpg)
-Swap RGB of pixels....
-I call it swizzling in reference to OpenGL [Swizzling](https://www.khronos.org/opengl/wiki/Data_Type_(GLSL)#Swizzling)
+Swap RGB channels of pixels. I call it swizzling in reference to OpenGL [swizzling](https://www.khronos.org/opengl/wiki/Data_Type_(GLSL)#Swizzling)
 
 ### Tips
 - Click and drag on the image you are editing to edit a specific part of it. 
