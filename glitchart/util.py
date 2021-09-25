@@ -2,8 +2,10 @@
 # Copyright (c) 2021 Mark Schloeman
 
 import os
+import pathlib
 import random
 import configparser
+
 
 def get_default_image_path():
     """ Returns a path to a default picture directory. 
@@ -13,9 +15,8 @@ def get_default_image_path():
     :returns: a string with an absolute filepath.
     """
     config = configparser.ConfigParser()
-    config.read("./config.ini") # NOTE : is using the relative path here smart? What's a better way to do this?
+    config.read(os.path.join(os.path.dirname(__file__), "config.ini")) # NOTE: is using the __file__ reliable enough?
     image_path = config.get("default", "image_path", fallback=None) # The path from config is assumed to be the path intended for glitch art.
-    # This is ugly but I'll be okay
     # NOTE: I want glitchart to all be contained in one place by default, so add stuff to make a glitch directory.
     if image_path is None:
         image_path = os.path.join(os.path.expanduser("~"), "Pictures")
@@ -23,6 +24,14 @@ def get_default_image_path():
             image_path = os.path.join(os.path.expanduser("~"), "pictures")
     return image_path
 
+# NOTE: I'm only using pathlib as a quick fix but I'd like to learn more about it and see if I could replace os
+# TODO: learn more about pathlib vs os
+def setup_image_path(base_dir):
+    """ Creates a glitch/input, glitch/output, and glitch/temp nested inside of base_dir """
+    pathlib.Path(os.path.join(base_dir, "glitch")).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.join(base_dir, "glitch", "input")).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.join(base_dir, "glitch", "output")).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.join(base_dir, "glitch", "temp")).mkdir(parents=True, exist_ok=True)
 
 def cli_prompt_image(directory=None):
     """ Searches a directory for images that can be used with these tools.

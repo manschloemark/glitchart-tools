@@ -996,7 +996,11 @@ class GlitchArtTools(QWidget):
     def __init__(self, screen_size):
         super().__init__()
 
+        # NOTE: I'm not happy with how I am handling the default path
+        # TODO: rewrite default path stuff
         self.default_path = util.get_default_image_path()
+        util.setup_image_path(self.default_path) # Set up input, output, and temp image directories
+        self.default_path = os.path.join(self.default_path, "glitch")
         self.source_filename = None
         self.glitch_filename = None
         self._size_hint = screen_size
