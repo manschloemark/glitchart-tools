@@ -17,7 +17,7 @@ Sort pixels from the image
 Rotate lines by some amount or by using sine and cosine
 
 ### Line Offsets With Aura
-![Offset overlayed on the original](./examples/sinauraoffset.jpg)
+![Offset overlayed on the original](./examples/auraoffset.jpg)
 Same as regular line offsets but the rotated image is overlayed on top of the original with less opacity.
 
 ### Swizzling / Channel Swapping
