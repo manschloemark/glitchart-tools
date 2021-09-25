@@ -6,10 +6,10 @@ Not all of it is literal glitch art, but it's all the same style.
 I'll be adding more tools to perform all sorts of glitches, some emulating actual glitches.
 
 ## Features
-![Example Image](./examples/demo.jpg)
+![Example Image](./examples/banquet.jpg)
 
 ### Pixelsorting
-![Sorting rows of an image](./examples/rowsort.jpg)
+![Sorting rows of an image](./examples/diagonaltracers.jpg)
 Sort pixels from the image
 
 ### Line Offsets
@@ -17,6 +17,7 @@ Sort pixels from the image
 Rotate lines by some amount or by using sine and cosine
 
 ### Line Offsets With Aura
+![Offset overlayed on the original](./examples/sinauraoffset.jpg)
 Same as regular line offsets but the rotated image is overlayed on top of the original with less opacity.
 
 ### Swizzling / Channel Swapping
