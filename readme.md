@@ -24,6 +24,10 @@ Same as regular line offsets but the rotated image is overlayed on top of the or
 Swap RGB of pixels....
 I call it swizzling in reference to OpenGL [Swizzling](https://www.khronos.org/opengl/wiki/Data_Type_(GLSL)#Swizzling)
 
+### Tips
+- Click and drag on the image you are editing to edit a specific part of it. 
+- You can set the output of a glitch to the next input using the 'Use as input' button.
+
 ## Requirements
 - Python 3.6+
 - PySide6
