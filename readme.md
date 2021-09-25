@@ -5,6 +5,16 @@ Not all of it is literal glitch art, but it's all the same style.
 
 I'll be adding more tools to perform all sorts of glitches, some emulating actual glitches.
 
+## Requirements
+- Python 3.6+
+- PySide6
+- Pillow (PIL)
+
+## Running
+To run the GUI use `python glitchart-qt.py`
+
+![An image of the GUI](./examples/gui.jpg)
+
 ## Features
 ![Example Image](./examples/banquet.jpg)
 
@@ -28,8 +38,4 @@ Swap RGB channels of pixels. I call it swizzling in reference to OpenGL [swizzli
 - Click and drag on the image you are editing to edit a specific part of it. 
 - You can set the output of a glitch to the next input using the 'Use as input' button.
 
-## Requirements
-- Python 3.6+
-- PySide6
-- Pillow (PIL)
 
