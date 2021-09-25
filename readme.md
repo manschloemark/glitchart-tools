@@ -13,7 +13,7 @@ I'll be adding more tools to perform all sorts of glitches, some emulating actua
 Sort pixels from the image
 
 ### Line Offsets
-![Columns offset by cos line number](./examples/cosoffset.jpg)
+![Columns offset by cos line number](./examples/offset.jpg)
 Rotate lines by some amount or by using sine and cosine
 
 ### Line Offsets With Aura
